@@ -8,7 +8,7 @@ object PostgresDbHelper {
   val postgresDb: Database = Database.forConfig("postgresInstance")
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  def getAttrTime = {
+  def getAttrTime() {
 
 
     val query = sql"""

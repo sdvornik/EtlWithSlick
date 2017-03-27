@@ -2,6 +2,10 @@ package com.yahoo.sdvornik.db
 
 
 
+import com.typesafe.scalalogging.Logger
+import org.h2.tools.Server
+
+
 /*
 object DbHelper {
 
@@ -18,11 +22,50 @@ object H2DbHelper {
 
   import slick.jdbc.H2Profile.api._
 
-  val h2Db: Database = Database.forConfig("h2memInstance")
+  private val log = Logger(classOf[H2DbHelper.type])
+
+  import com.typesafe.config.ConfigFactory
+
+  private val EXTERNAL_CONN_STR: String = ConfigFactory.load().getString("h2extInstance.url")
+
+  private val USER: String = ConfigFactory.load().getString("h2extInstance.user")
+
+  private val PWD: String = ConfigFactory.load().getString("h2extInstance.password")
+
+  private val h2Db: Database = Database.forConfig("h2memInstance")
+
+  def getTCPServer: Option[Server] = {
+    try {
+      Some(Server.createTcpServer()) match {
+        case server@Some(x) =>
+          x.start()
+          server
+        case _ => None
+      }
+    }
+    catch {
+      case e: Exception =>
+        log.error("Can't create TCP Server", e)
+        None
+    }
+  }
+
+  def stopTCPServer(optServer: Option[Server]) {
+    try {
+      optServer.foreach(
+        server => {
+          server.shutdown()
+          server.stop()
+        }
+      )
+    }
+    catch {
+      case e: Exception =>
+        log.error("Can't stop TCP server", e)
+    }
+  }
 
   def createH2Schema() {
-
-    import scala.concurrent.ExecutionContext.Implicits.global
 
     try {
       import com.yahoo.sdvornik.mem_tables._
