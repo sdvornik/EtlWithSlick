@@ -97,8 +97,16 @@ class TimeStd(tag: Tag) extends Table[(Int, String)](tag, "TIME_STD") {
   def * = (id_indx, time)
 }
 
-class VrcptInt(tag: Tag) extends Table[(Int, String)](tag, "TIME_STD") {
+class VrcptInt(tag: Tag) extends Table[(Int, String)](tag, "V_RCPT_INT") {
   def v_rcpt_int: Rep[Int] = column[Int]("V_RCPT_INT")
   def product: Rep[String] = column[String]("PRODUCT")
   def * = (v_rcpt_int, product)
 }
+
+class LocBaseFcst(tag: Tag) extends Table[(String, Int, Int)](tag, "LOC_BASE_FCST_") {
+  def location: Rep[String] = column[String]("LOCATION")
+  def week_indx: Rep[Int] = column[Int]("WEEK_INDX")
+  def fcst: Rep[Int] = column[Int]("FCST")
+  def *  = (location, week_indx, fcst)
+}
+

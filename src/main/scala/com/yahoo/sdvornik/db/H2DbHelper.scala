@@ -4,6 +4,7 @@ package com.yahoo.sdvornik.db
 
 import com.typesafe.scalalogging.Logger
 import org.h2.tools.Server
+import slick.jdbc.H2Profile
 
 
 /*
@@ -22,7 +23,7 @@ object H2DbHelper {
 
   import slick.jdbc.H2Profile.api._
 
-  private val log = Logger(classOf[H2DbHelper.type])
+  private val log = Logger(H2DbHelper.getClass)
 
   import com.typesafe.config.ConfigFactory
 
@@ -83,21 +84,28 @@ object H2DbHelper {
       val vRcptInt = TableQuery[VrcptInt]
 
 
-      val setup = DBIO.seq(
-        (
-          attrTime.schema ++
-            bod.schema ++
-            clStr.schema ++
-            dcAdj.schema ++
-            department.schema ++
-            eoh.schema ++
-            frontline.schema ++
-            invModel.schema ++
-            storeLookup.schema ++
-            timeIndx.schema ++
-            timeStd.schema ++
-            vRcptInt.schema
-          ).create
+      val ddlStatement: H2Profile.DDL =
+        attrTime.schema ++
+        bod.schema ++
+        clStr.schema ++
+        dcAdj.schema ++
+        department.schema ++
+        eoh.schema ++
+        frontline.schema ++
+        invModel.schema ++
+        storeLookup.schema ++
+        timeIndx.schema ++
+        timeStd.schema ++
+        vRcptInt.schema
+
+      val ddlStatementAction: H2Profile.ProfileAction[Unit, NoStream, Effect.Schema] = ddlStatement.create
+
+      val setup: DBIOAction[Unit, NoStream, Effect.Schema] = DBIO.seq(ddlStatementAction)
+
+      //val insertInAttrTime: H2Profile.ProfileAction[Unit, NoStream, Effect.Schema] = DBIO.seq()
+
+
+      import com.yahoo.sdvornik.db.PostgresDbHelper._
 
         // Insert some coffees (using JDBC's batch insert feature, if supported by the DB)
         /*
@@ -109,11 +117,17 @@ object H2DbHelper {
         ("French_Roast_Decaf", 49, 9.99, 0, 0)
       )
 */
-      )
 
+      import scala.concurrent.ExecutionContext.Implicits.global
       val setupFuture = h2Db.run(setup)
+      setupFuture.onComplete(_ => println("Future exec"))
+
     }
-    finally h2Db.close
+    catch {
+      case e: Exception => System.out.println(e.getMessage)
+    }
+
+    //finally h2Db.close
   }
 }
 
