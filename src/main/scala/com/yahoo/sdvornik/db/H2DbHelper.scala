@@ -1,24 +1,9 @@
 package com.yahoo.sdvornik.db
 
-
-
 import com.typesafe.scalalogging.Logger
 import org.h2.tools.Server
 import slick.jdbc.H2Profile
 
-
-/*
-object DbHelper {
-
-  private val POSTGRES_CONN_STR: String = "jdbc:postgresql://localhost:5432/calg_big"
-
-  private val EMBEDDED_H2_CONN_STR: String = "jdbc:h2:mem:db_calc"
-
-  private val user: String = "postgres"
-
-  private val pwd: String = "ubuj2420"
-}
-*/
 object H2DbHelper {
 
   import slick.jdbc.H2Profile.api._
@@ -68,67 +53,76 @@ object H2DbHelper {
 
   def createH2Schema() {
 
-    try {
-      import com.yahoo.sdvornik.mem_tables._
-      val attrTime = TableQuery[AttrTime]
-      val bod = TableQuery[Bod]
-      val clStr = TableQuery[ClStr]
-      val dcAdj = TableQuery[DcAdj]
-      val department = TableQuery[Department]
-      val eoh = TableQuery[Eoh]
-      val frontline = TableQuery[Frontline]
-      val invModel = TableQuery[InvModel]
-      val storeLookup = TableQuery[StoreLookup]
-      val timeIndx = TableQuery[TimeIndx]
-      val timeStd = TableQuery[TimeStd]
-      val vRcptInt = TableQuery[VrcptInt]
+    import com.yahoo.sdvornik.mem_tables._
+    val attrTime = TableQuery[AttrTime]
+    val bod = TableQuery[Bod]
+    val clStr = TableQuery[ClStr]
+    val dcAdj = TableQuery[DcAdj]
+    val department = TableQuery[Department]
+    val eoh = TableQuery[Eoh]
+    val frontline = TableQuery[Frontline]
+    val invModel = TableQuery[InvModel]
+    val storeLookup = TableQuery[StoreLookup]
+    val timeIndx = TableQuery[TimeIndx]
+    val timeStd = TableQuery[TimeStd]
+    val vRcptInt = TableQuery[VrcptInt]
 
 
-      val ddlStatement: H2Profile.DDL =
-        attrTime.schema ++
-        bod.schema ++
-        clStr.schema ++
-        dcAdj.schema ++
-        department.schema ++
-        eoh.schema ++
-        frontline.schema ++
-        invModel.schema ++
-        storeLookup.schema ++
-        timeIndx.schema ++
-        timeStd.schema ++
-        vRcptInt.schema
+    val ddlStatement: H2Profile.DDL =
+      attrTime.schema ++
+      bod.schema ++
+      clStr.schema ++
+      dcAdj.schema ++
+      department.schema ++
+      eoh.schema ++
+      frontline.schema ++
+      invModel.schema ++
+      storeLookup.schema ++
+      timeIndx.schema ++
+      timeStd.schema ++
+      vRcptInt.schema
 
-      val ddlStatementAction: H2Profile.ProfileAction[Unit, NoStream, Effect.Schema] = ddlStatement.create
+    val ddlStatementAction: H2Profile.ProfileAction[Unit, NoStream, Effect.Schema] = ddlStatement.create
 
-      val setup: DBIOAction[Unit, NoStream, Effect.Schema] = DBIO.seq(ddlStatementAction)
+    val setup: DBIOAction[Unit, NoStream, Effect.Schema] = DBIO.seq(ddlStatementAction)
 
-      //val insertInAttrTime: H2Profile.ProfileAction[Unit, NoStream, Effect.Schema] = DBIO.seq()
+    import com.yahoo.sdvornik.db.PostgresDbHelper._
+    import scala.concurrent.ExecutionContext.Implicits.global
+
+    val attrTimeInsert = h2Db.run(setup)
+      .flatMap(_ => postgresDb.run(attrTimeQuery))
+      .flatMap(vector  => h2Db.run(DBIO.seq(attrTime ++= vector)))
+
+    attrTimeInsert.onComplete(x =>
+      if (x.isSuccess) log.info("Successfully write to AttrTime MemTable")
+      else log.error("Can't write to AttrTime MemTable",x.failed.get)
+    )
+
+    val bodInsert = h2Db.run(DBIO.from(attrTimeInsert))
+      .flatMap(_ => postgresDb.run(bodQuery))
+      .flatMap(vector  => h2Db.run(DBIO.seq(bod ++= vector)))
+
+    bodInsert.onComplete(x =>
+      if (x.isSuccess) log.info("Successfully write to Bod MemTable")
+      else log.error("Can't write to Bod MemTable",x.failed.get)
+    )
+
+    val clStrInsert = h2Db.run(DBIO.from(bodInsert))
+      .flatMap(_ => postgresDb.run(clStrQuery))
+      .flatMap(vector  => h2Db.run(DBIO.seq(clStr ++= vector)))
+
+    clStrInsert.onComplete(x =>
+      if (x.isSuccess) log.info("Successfully write to ClStr MemTable")
+      else log.error("Can't write to ClStr MemTable",x.failed.get)
+    )
 
 
-      import com.yahoo.sdvornik.db.PostgresDbHelper._
 
-        // Insert some coffees (using JDBC's batch insert feature, if supported by the DB)
-        /*
-      coffees ++= Seq(
-        ("Colombian",         101, 7.99, 0, 0),
-        ("French_Roast",       49, 8.99, 0, 0),
-        ("Espresso",          150, 9.99, 0, 0),
-        ("Colombian_Decaf",   101, 8.99, 0, 0),
-        ("French_Roast_Decaf", 49, 9.99, 0, 0)
-      )
-*/
-
-      import scala.concurrent.ExecutionContext.Implicits.global
-      val setupFuture = h2Db.run(setup)
-      setupFuture.onComplete(_ => println("Future exec"))
-
-    }
-    catch {
-      case e: Exception => System.out.println(e.getMessage)
-    }
-
-    //finally h2Db.close
   }
+
+
+    //h2Db.close
+
 }
 
 
