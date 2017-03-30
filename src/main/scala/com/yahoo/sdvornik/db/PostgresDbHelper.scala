@@ -82,7 +82,8 @@ object PostgresDbHelper {
     SELECT
       id AS product
       ,ancestor3 as department
-    FROM public.prodstd AS PROD_STD;""".as[(String, String)]
+    FROM public.prodstd AS PROD_STD
+    WHERE id is not null AND ancestor3 is not null;""".as[(String, String)]
 
   val clStrQuery = sql"""
     SELECT
@@ -100,8 +101,8 @@ object PostgresDbHelper {
 
   val vRcptIntQuery = sql"""
     SELECT
-      product
-      ,CAST(ccrcptint AS int) AS v_rcpt_int
+      CAST(ccrcptint AS int) AS v_rcpt_int
+      ,product
     FROM public.stylecolorattributes;""".as[(Int, String)]
 
   val timeIndxQuery = sql"""
@@ -116,7 +117,8 @@ object PostgresDbHelper {
       TIME_T.indx AS id_indx
       ,ancestor3 AS time
     FROM public.timestd AS TIME_STD_T
-    JOIN public.time AS TIME_T USING(id);""".as[(Int, String)]
+    JOIN public.time AS TIME_T USING(id)
+    WHERE TIME_T.indx is not null AND ancestor3 is not null;""".as[(Int, String)]
 
   def productQuery(product: String) = sql"""
     SELECT

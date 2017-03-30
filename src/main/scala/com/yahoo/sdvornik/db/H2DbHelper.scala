@@ -116,8 +116,86 @@ object H2DbHelper {
       else log.error("Can't write to ClStr MemTable",x.failed.get)
     )
 
+    val dcAdjInsert = h2Db.run(DBIO.from(clStrInsert))
+      .flatMap(_ => postgresDb.run(dcAdjQuery))
+      .flatMap(vector  => h2Db.run(DBIO.seq(dcAdj ++= vector)))
 
+    dcAdjInsert.onComplete(x =>
+      if (x.isSuccess) log.info("Successfully write to DcAdj MemTable")
+      else log.error("Can't write to DcAdj MemTable",x.failed.get)
+    )
 
+    val departmentInsert = h2Db.run(DBIO.from(dcAdjInsert))
+      .flatMap(_ => postgresDb.run(departmentQuery))
+      .flatMap(vector  => h2Db.run(DBIO.seq(department ++= vector)))
+
+    departmentInsert.onComplete(x =>
+      if (x.isSuccess) log.info("Successfully write to Department MemTable")
+      else log.error("Can't write to Department MemTable",x.failed.get)
+    )
+
+    val eohInsert = h2Db.run(DBIO.from(dcAdjInsert))
+      .flatMap(_ => postgresDb.run(eohQuery))
+      .flatMap(vector  => h2Db.run(DBIO.seq(eoh ++= vector)))
+
+    eohInsert.onComplete(x =>
+      if (x.isSuccess) log.info("Successfully write to Eoh MemTable")
+      else log.error("Can't write to Eoh MemTable",x.failed.get)
+    )
+
+    val frontlineInsert = h2Db.run(DBIO.from(eohInsert))
+      .flatMap(_ => postgresDb.run(frontlineQuery))
+      .flatMap(vector  => h2Db.run(DBIO.seq(frontline ++= vector)))
+
+    frontlineInsert.onComplete(x =>
+      if (x.isSuccess) log.info("Successfully write to Frontline MemTable")
+      else log.error("Can't write to Frontline MemTable",x.failed.get)
+    )
+
+    val invModelInsert = h2Db.run(DBIO.from(frontlineInsert))
+      .flatMap(_ => postgresDb.run(invModelQuery))
+      .flatMap(vector  => h2Db.run(DBIO.seq(invModel ++= vector)))
+
+    invModelInsert.onComplete(x =>
+      if (x.isSuccess) log.info("Successfully write to InvModel MemTable")
+      else log.error("Can't write to InvModel MemTable",x.failed.get)
+    )
+
+    val storeLookupInsert = h2Db.run(DBIO.from(invModelInsert))
+      .flatMap(_ => postgresDb.run(storeLookupQuery))
+      .flatMap(vector  => h2Db.run(DBIO.seq(storeLookup ++= vector)))
+
+    storeLookupInsert.onComplete(x =>
+      if (x.isSuccess) log.info("Successfully write to StoreLookup MemTable")
+      else log.error("Can't write to StoreLookup MemTable",x.failed.get)
+    )
+
+    val timeIndxInsert = h2Db.run(DBIO.from(storeLookupInsert))
+      .flatMap(_ => postgresDb.run(timeIndxQuery))
+      .flatMap(vector  => h2Db.run(DBIO.seq(timeIndx ++= vector)))
+
+    timeIndxInsert.onComplete(x =>
+      if (x.isSuccess) log.info("Successfully write to TimeIndx MemTable")
+      else log.error("Can't write to TimeIndx MemTable",x.failed.get)
+    )
+
+    val timeStdInsert = h2Db.run(DBIO.from(timeIndxInsert))
+      .flatMap(_ => postgresDb.run(timeStdQuery))
+      .flatMap(vector  => h2Db.run(DBIO.seq(timeStd ++= vector)))
+
+    timeStdInsert.onComplete(x =>
+      if (x.isSuccess) log.info("Successfully write to TimeStd MemTable")
+      else log.error("Can't write to TimeStd MemTable",x.failed.get)
+    )
+
+    val vRcptIntInsert = h2Db.run(DBIO.from(timeStdInsert))
+      .flatMap(_ => postgresDb.run(vRcptIntQuery))
+      .flatMap(vector  => h2Db.run(DBIO.seq(vRcptInt ++= vector)))
+
+    vRcptIntInsert.onComplete(x =>
+      if (x.isSuccess) log.info("Successfully write to vRcptInt MemTable")
+      else log.error("Can't write to vRcptInt MemTable",x.failed.get)
+    )
   }
 
 
