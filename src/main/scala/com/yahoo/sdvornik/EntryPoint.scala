@@ -5,10 +5,12 @@ object EntryPoint extends App{
 
   val server = H2DbHelper.getTCPServer
 
-  H2DbHelper.createH2Schema()
-  //import com.yahoo.sdvornik.db.PostgresDbHelper
-  //val res = PostgresDbHelper.getAttrTime
-  //println(res.toString)
+  val product = "10127-001"
+
+  val lastFuture = H2DbHelper.createMemTables()
+  val nextFuture = H2DbHelper.createProductAndArgsTables(product, 936, 1039, lastFuture)
+  H2DbHelper.executeCalculation(product,nextFuture)
+
   Thread.sleep(10000000)
   H2DbHelper.stopTCPServer(server)
 }

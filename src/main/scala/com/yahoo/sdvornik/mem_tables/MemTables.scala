@@ -1,6 +1,5 @@
 package com.yahoo.sdvornik.mem_tables
 
-
 import slick.jdbc.H2Profile.api._
 
 class AttrTime(tag: Tag) extends Table[(String, String, Int)](tag, "ATTR_TIME") {
@@ -50,20 +49,20 @@ class Eoh(tag: Tag) extends Table[(String, String, Int)](tag, "EOH") {
   def * = (product, location, eoh)
 }
 
-class Frontline(tag: Tag) extends Table[(String, String, String, String, String, Int, Int, Int, Int, String, Int)](tag, "FRONTLINE") {
+class Frontline(tag: Tag) extends Table[(String, String, String, String, String, String, Int, Int, Int, Int, Int)](tag, "FRONTLINE") {
   def product: Rep[String] = column[String]("PRODUCT")
   def location: Rep[String] = column[String]("LOCATION")
   def flrset: Rep[String] = column[String]("FLRSET")
   def grade: Rep[String] = column[String]("GRADE")
   def strclimate: Rep[String] = column[String]("STRCLIMATE")
+  def validsizes: Rep[String] = column[String]("VALIDSIZES")
   def initrcptwk_indx: Rep[Int] = column[Int]("INITRCPTWK_INDX")
   def exitdate_indx: Rep[Int] = column[Int]("EXITDATE_INDX")
   def dbtwk_indx: Rep[Int] = column[Int]("DBTWK_INDX")
   def erlstmkdnwk_indx: Rep[Int] = column[Int]("ERLSTMKDNWK_INDX")
-  def validsizes: Rep[String] = column[String]("VALIDSIZES")
   def lastdcrcpt_indx: Rep[Int] = column[Int]("LASTDCRCPT_INDX")
   def *  =
-    (product, location, flrset, grade, strclimate, initrcptwk_indx, exitdate_indx, dbtwk_indx, erlstmkdnwk_indx, validsizes, lastdcrcpt_indx)
+    (product, location, flrset, grade, strclimate, validsizes, initrcptwk_indx, exitdate_indx, dbtwk_indx, erlstmkdnwk_indx, lastdcrcpt_indx)
 }
 
 class InvModel(tag: Tag) extends Table[(String, Int, Int, Long, Long, Int)](tag, "INV_MODEL") {
@@ -77,12 +76,12 @@ class InvModel(tag: Tag) extends Table[(String, Int, Int, Long, Long, Int)](tag,
   def *  = (product, sizes, too, aps_lower, aps, woc)
 }
 
-class StoreLookup(tag: Tag) extends Table[(String, String, String, String)](tag, "STORE_LOOKUP") {
+class StoreLookup(tag: Tag) extends Table[(String, Int, String, String)](tag, "STORE_LOOKUP") {
   def department: Rep[String] = column[String]("DEPARTMENT")
-  def time: Rep[String] = column[String]("TIME")
+  def id_indx: Rep[Int] = column[Int]("ID_INDX")
   def location: Rep[String] = column[String]("LOCATION")
-  def grade: Rep[String] = column[String]("EOH")
-  def *  = (department, time, location, grade)
+  def grade: Rep[String] = column[String]("GRADE")
+  def *  = (department, id_indx, location, grade)
 }
 
 class TimeIndx(tag: Tag) extends Table[(Int, String)](tag, "TIME_INDX") {
@@ -103,10 +102,11 @@ class VrcptInt(tag: Tag) extends Table[(Int, String)](tag, "V_RCPT_INT") {
   def * = (v_rcpt_int, product)
 }
 
-class LocBaseFcst(tag: Tag) extends Table[(String, Int, Int)](tag, "LOC_BASE_FCST_") {
-  def location: Rep[String] = column[String]("LOCATION")
-  def week_indx: Rep[Int] = column[Int]("WEEK_INDX")
-  def fcst: Rep[Int] = column[Int]("FCST")
-  def *  = (location, week_indx, fcst)
+class FrontSizes(tag: Tag) extends Table[(Int, String)](tag, "FRONT_SIZES") {
+  def num_sizes: Rep[Int] = column[Int]("NUM_SIZES")
+  def product: Rep[String] = column[String]("PRODUCT")
+  def * = (num_sizes, product)
 }
+
+
 
