@@ -5,7 +5,7 @@ object EntryPoint extends App{
 
   val server = H2DbHelper.getTCPServer
 
-  val product = "10127-001"
+  val product = "11215-22Z"
 
   val lastFuture = H2DbHelper.createMemTables()
   val nextFuture = H2DbHelper.createProductAndArgsTables(product, 936, 1039, lastFuture)
