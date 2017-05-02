@@ -1,5 +1,5 @@
 --[2017-04-08 21:45:04] Summary: 7 of 7 statements executed in 99ms (6116 symbols in file)
-
+--drop table EXTENDED_ARGS;
 --[2017-04-08 15:24:11] 0 row(s) affected in 4ms
 create table EXTENDED_ARGS AS (
   SELECT
@@ -33,16 +33,14 @@ create table RCPT_AGG AS (
 --[2017-04-08 15:24:11] 0 row(s) affected in 18ms
 create table DC_CREATED AS (
     WITH RECURSIVE REC(
-      location
-      ,indx
+      indx
       ,dc_poh
       ,dc_raw
       ,outbound
       ,deficit
       ,calc_var) AS (
       SELECT
-        'DC'
-        ,RCPT_AGG.indx, coalesce(EOH.eoh, 0) AS dc_poh
+        RCPT_AGG.indx, coalesce(EOH.eoh, 0) AS dc_poh
         ,
         CASE
           WHEN RCPT_AGG.indx < EXTENDED_ARGS.first_sbkt_indx THEN 0
@@ -89,8 +87,7 @@ create table DC_CREATED AS (
       UNION ALL
 
       SELECT
-        'DC'
-        ,REC.indx + 1 AS indx
+        REC.indx + 1 AS indx
         ,coalesce(REC.calc_var, 0) AS dc_poh
         ,
         CASE
@@ -189,8 +186,7 @@ create table DC_CREATED AS (
 --[2017-04-08 15:24:11] 0 row(s) affected in 7ms
 create table DC AS (
   SELECT
-    location
-    ,DC_CREATED.indx
+    DC_CREATED.indx
     ,dc_sbkt
     ,dc_raw
     ,outbound
@@ -205,6 +201,7 @@ create table DC AS (
     GROUP BY indx      
   ) AS DC_SBKT ON DC_CREATED.indx = DC_SBKT.indx
 );
+
 drop table EXTENDED_ARGS;
 drop table RCPT_AGG;
 drop table DC_CREATED;

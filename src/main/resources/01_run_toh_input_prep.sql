@@ -1,5 +1,4 @@
 --[2017-04-08 17:46:53] Summary: 30 of 30 statements executed in 4s 124ms (5804 symbols in file)
-
 --[2017-04-08 20:15:10] completed in 23ms
 create table AM_WK AS (
   select

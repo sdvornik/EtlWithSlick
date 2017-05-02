@@ -27,7 +27,6 @@ create table TOH_INPUT_2 AS (
   LEFT JOIN EOH ON
      TOH_INPUT_1.location = EOH.location
   JOIN ARGS ON
-
     TOH_INPUT_1.indx >= ARGS.v_plancurrent AND
     TOH_INPUT_1.indx <= ARGS.v_planend
   ORDER BY location, indx
