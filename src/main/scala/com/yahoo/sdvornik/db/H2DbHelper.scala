@@ -1,5 +1,7 @@
 package com.yahoo.sdvornik.db
 
+import java.sql.Connection
+
 import com.typesafe.scalalogging.Logger
 import org.h2.tools.Server
 import slick.jdbc.H2Profile
