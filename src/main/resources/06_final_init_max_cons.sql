@@ -4,35 +4,32 @@ create table MAX_CONS AS (
   SELECT
     location,
     CASE
-    WHEN COALESCE(c.Ttl_Str_Unc_Need, 0) = 0
-      THEN 0
-    ELSE /*half_round*/((COALESCE(a.Ttl_DC_Rcpt, 0) + COALESCE(beg_eoh, 0)) *
-                    b.Str_Unc_Need / CAST(c.Ttl_Str_Unc_Need AS NUMERIC))
+        WHEN COALESCE(c.Ttl_Str_Unc_Need, 0) = 0 THEN 0
+        ELSE half_round((COALESCE(a.Ttl_DC_Rcpt, 0) + COALESCE(beg_eoh, 0)) *
+                        b.Str_Unc_Need / CAST(c.Ttl_Str_Unc_Need AS NUMERIC))
     END AS value
-  FROM
-    (
+  FROM (
       SELECT
         SUM(dc_raw) AS Ttl_DC_Rcpt
       FROM DC
-    ) AS a
-    ,(
-      select
-        coalesce(eoh,0) AS beg_eoh
-      from EOH
+  ) AS a ,(
+      SELECT
+        coalesce(value,0) AS beg_eoh
+      FROM EOH_BY_PRODUCT
       WHERE location = 'DC'
-     ) AS d
-    ,(
+  ) AS d ,(
       SELECT
         location,
         SUM(unc_need_lt) AS Str_Unc_Need
       FROM RCPT
       GROUP BY location
-     ) AS b
-    ,(
+  ) AS b ,(
       SELECT
         SUM(unc_need_lt) AS Ttl_Str_Unc_Need
       FROM RCPT
-     ) AS c
+  ) AS c
 );
-CREATE HASH INDEX MAX_CONS_location_indx_idx ON MAX_CONS(location);
---drop table MAX_CONS;
+
+create table A_OUTPUT AS (
+    SELECT * FROM FINAL_UNCONS_MOD(SELECT v_plancurrent FROM ARGS)
+);

@@ -3,6 +3,9 @@ SET UNDO_LOG 0;
 SET LOG 0;
 SET CACHE_SIZE 10000000;
 
+CREATE ALIAS HALF_ROUND FOR "com.yahoo.sdvornik.db.Func.half_round";
+
+CREATE ALIAS FINAL_UNCONS_MOD FOR "com.yahoo.sdvornik.db.Func.final_uncons_mod";
 
 CREATE UNIQUE HASH INDEX loc_base_location_idx ON #LOC_BASE_FCST_PRODUCT#(location, week_indx);
 
@@ -25,8 +28,6 @@ CREATE INDEX STORE_LOOKUP_time_idx ON STORE_LOOKUP(id_indx);
 CREATE INDEX INV_MODEL_aps_lower_idx ON INV_MODEL(aps_lower);
 
 CREATE INDEX INV_MODEL_aps_idx ON INV_MODEL(aps);
-
-CREATE HASH INDEX EOH_location_idx ON EOH(location);
 
 CREATE HASH INDEX CL_STR_location_str_climate_idx ON CL_STR(location, str_climate);
 
@@ -113,3 +114,13 @@ create table DC_ADJ_SET AS (
   from DC_ADJ
   JOIN ARGS ON DC_ADJ.product = ARGS.product
 );
+
+create table EOH_BY_PRODUCT AS (
+  select
+    location,
+    eoh AS value
+  from EOH
+  JOIN ARGS ON EOH.product = ARGS.product
+);
+
+CREATE HASH INDEX EOH_location_idx ON EOH_BY_PRODUCT(location);

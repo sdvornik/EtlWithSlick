@@ -23,8 +23,7 @@ object H2DbHelper {
     "03_final_dc_vrp_sbkt.sql" ::
     "04_final_uncon_need_calc.sql" ::
     "05_final_dc_raw_projections.sql" ::
-    "06_final_init_max_cons.sql" ::
-    "07_final_cons_uncons_need_str.sql" :: Nil
+    "06_final_init_max_cons.sql" ::  Nil
 
   private val h2Db: Database = Database.forConfig("h2memInstance")
 
