@@ -1,4 +1,4 @@
-package com.yahoo.sdvornik.db;
+package com.yahoo.sdvornik.db.dc;
 
 public class DcTarget {
   public final static DcTarget Default = new DcTarget();

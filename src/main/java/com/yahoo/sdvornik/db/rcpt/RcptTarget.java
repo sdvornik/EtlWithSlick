@@ -1,4 +1,4 @@
-package com.yahoo.sdvornik.db;
+package com.yahoo.sdvornik.db.rcpt;
 
 
 public class RcptTarget {
@@ -14,8 +14,10 @@ public class RcptTarget {
   private final int tempCons;
   private final int dcSbkt;
 
+  private final int uncNeedLt;
 
   private int consEohLt;
+
 
   private int consBohLt;
   private int consNeedLt;
@@ -37,7 +39,10 @@ public class RcptTarget {
     int tempCons,
     int dcSbkt,
 
+    int uncNeedLt,
+
     int consEohLt
+
 
   ){
     this.tempBoh = tempBoh;
@@ -47,6 +52,8 @@ public class RcptTarget {
     this.tempSlsu = tempSlsu;
     this.tempCons = tempCons;
     this.dcSbkt = dcSbkt;
+
+    this.uncNeedLt = uncNeedLt;
 
     this.consEohLt = consEohLt;
     this.consBohLt = 0;
@@ -69,6 +76,7 @@ public class RcptTarget {
     this.tempCons = 0;
     this.dcSbkt = 0;
 
+    this.uncNeedLt = 0;
     this.consEohLt = 0;
 
     this.consBohLt = 0;
@@ -143,6 +151,10 @@ public class RcptTarget {
 
   public int getConsSlsuLt() {
     return consSlsuLt;
+  }
+
+  public int getUncNeedLt() {
+    return uncNeedLt;
   }
 
   public void setConsEohLt(int consEohLt) {
