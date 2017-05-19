@@ -250,3 +250,11 @@ drop table RCPT_EXTENDED;
 drop table RCPT_EXTENDED_ADD;
 
 --drop table RCPT;
+
+--[2017-04-08 15:27:51] Summary: 2 of 2 statements executed in 96ms (726 symbols in file)
+--[2017-04-08 15:27:19] completed in 86ms
+
+
+create table A_OUTPUT AS (
+  SELECT * FROM FINAL_UNCONS_MOD(936, 1039)
+);

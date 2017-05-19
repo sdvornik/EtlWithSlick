@@ -21,9 +21,8 @@ object H2DbHelper {
     "01_run_toh_input_prep.sql" ::
     "02_run_toh_calc.sql" ::
     "03_final_dc_vrp_sbkt.sql" ::
-    "04_final_uncon_need_calc.sql" ::
-    "05_final_dc_raw_projections.sql" ::
-    "06_final_init_max_cons.sql" ::  Nil
+    "04_final_uncon_need_calc.sql" :: Nil
+
 
   private val h2Db: Database = Database.forConfig("h2memInstance")
 
