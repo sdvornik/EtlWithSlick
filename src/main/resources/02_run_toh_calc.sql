@@ -146,9 +146,45 @@ CREATE HASH INDEX TOH_INPUT_1_indx_idx ON TOH_INPUT_1(indx);
 --[2017-04-08 21:41:33] completed in 134ms
 CREATE HASH INDEX TOH_INPUT_1_location_idx ON TOH_INPUT_1(location);
 
+
+
+--[2017-04-08 16:41:29] completed in 400ms
+create table TOH_INPUT_2 AS (
+  SELECT
+    TOH_INPUT_1.location
+    ,indx
+    ,coalesce(unc_fcst,0) AS unc_fcst
+    ,coalesce(CAST(toh AS int),0) AS toh, coalesce(EOH.eoh, 0) AS eoh_by_location
+  FROM TOH_INPUT_1
+  LEFT JOIN EOH ON
+     TOH_INPUT_1.location = EOH.location
+  JOIN ARGS ON
+    TOH_INPUT_1.indx >= ARGS.v_plancurrent AND
+    TOH_INPUT_1.indx <= ARGS.v_planend
+  ORDER BY location, indx
+);
+CREATE HASH INDEX TOH_INPUT_2_location_indx_idx ON TOH_INPUT_2(location, indx);
+
+--[2017-04-08 16:40:17] completed in 87ms
+create table V_LT AS (
+  SELECT
+    BOD.location
+    ,bod AS value
+  from BOD
+  join DEPARTMENT_SET ON
+    BOD.department = DEPARTMENT_SET.department
+  join (
+    SELECT distinct
+      location
+    FROM TOH_INPUT_2
+  ) AS STR ON
+    BOD.location = STR.location
+);
+
+drop table TOH_INPUT;
+drop table TOH_INPUT_1;
 drop table UPDATE_TOH;
 drop table REC_LOCATION;
 drop table LKP_REC;
 drop table REC_LOCATION_EXT;
 drop table V_TOH_MOD;
---drop table TOH_INPUT_1;

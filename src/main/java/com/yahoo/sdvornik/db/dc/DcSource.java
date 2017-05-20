@@ -9,13 +9,17 @@ public class DcSource {
 
   public final static DcSource Default = new DcSource();
 
-
   private final int dcPoh;
   private final int dcRaw;
   private final int outbound;
   private final int dcSbkt;
   private int dcRcpt;
   private final int deficit;
+
+
+  private int dcOhRsv;
+  private int dcAta;
+  private int aOut;
 
   public DcSource(
     int dcPoh,
@@ -31,6 +35,10 @@ public class DcSource {
     this.dcSbkt = dcSbkt;
     this.dcRcpt = dcRcpt;
     this.deficit = deficit;
+
+    this.dcOhRsv = 0;
+    this.dcAta = 0;
+    this.aOut = 0;
   }
 
   private DcSource() {
@@ -40,6 +48,10 @@ public class DcSource {
     this.dcSbkt = 0;
     this.dcRcpt = 0;
     this.deficit = 0;
+
+    this.dcOhRsv = 0;
+    this.dcAta = 0;
+    this.aOut = 0;
   }
 
   public int getDcPoh() {
@@ -58,15 +70,39 @@ public class DcSource {
     return dcRcpt;
   }
 
-  public void setDcRcpt(int dcRcpt) {
-    this.dcRcpt = dcRcpt;
-  }
-
   public int getOutbound() {
     return outbound;
   }
 
   public int getDeficit() {
     return deficit;
+  }
+
+  public int getDcOhRsv() {
+    return dcOhRsv;
+  }
+
+  public int getDcAta() {
+    return dcAta;
+  }
+
+  public int getaOut() {
+    return aOut;
+  }
+
+  public void setDcRcpt(int dcRcpt) {
+    this.dcRcpt = dcRcpt;
+  }
+
+  public void setDcOhRsv(int dcOhRsv) {
+    this.dcOhRsv = dcOhRsv;
+  }
+
+  public void setDcAta(int dcAta) {
+    this.dcAta = dcAta;
+  }
+
+  public void setaOut(int aOut) {
+    this.aOut = aOut;
   }
 }

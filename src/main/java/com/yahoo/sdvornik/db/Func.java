@@ -1,9 +1,9 @@
 package com.yahoo.sdvornik.db;
 
 import com.yahoo.sdvornik.db.dc.DcSource;
-import com.yahoo.sdvornik.db.dc.DcTarget;
 import com.yahoo.sdvornik.db.rcpt.RcptSource;
 import com.yahoo.sdvornik.db.rcpt.RcptTarget;
+import com.yahoo.sdvornik.db.toh_input.TohInputSource;
 import com.yahoo.sdvornik.db.vrp_test.VrpTestSource;
 import org.h2.tools.SimpleResultSet;
 import org.slf4j.Logger;
@@ -24,6 +24,13 @@ public final class Func {
     LOCATION_NAME + ", " +
     VALUE_NAME +
     " FROM " + EOH_NAME;
+
+  private final static String V_LT_NAME = "V_LT";
+  private final static String GET_V_LT = "SELECT " +
+    LOCATION_NAME + ", " +
+    VALUE_NAME +
+    " FROM " + V_LT_NAME;
+
 
 
   private Func() {}
@@ -61,20 +68,27 @@ public final class Func {
 
     if (conn.getMetaData().getURL().equals("jdbc:columnlist:connection")) return rs;
 
-    System.out.println("RUN " + conn.getMetaData().getURL());
+    logger.info("RUN " + conn.getMetaData().getURL());
     try {
-
+      Map<Location, Integer> EOH_BY_PRODUCT = new HashMap<>();
+      Map<Location, Integer> V_LT = new HashMap<>();
 
       Map<LocationIndxKey, RcptTarget> RCPT_TARGET_MAP = new HashMap<>();
       Map<IndxKey, DcSource> DC_SOURCE_MAP = new HashMap<>();
-      Map<IndxKey, DcTarget> DC_TARGET_MAP = new HashMap<>();
+
       Map<Location, Integer> INIT_MAX_CONS = new HashMap<>();
+
+      Map<LocationIndxKey, RcptSource> RCPT_SOURCE_MAP = new HashMap<>();
+      Map<IndxKey, List<RcptSource>> RCPT_SOURCE_MAP_BY_INDX = new HashMap<>();
 
 
       Map<IndxKey, VrpTestSource> VRP_TEST_SOURCE_MAP = new HashMap<>();
       Map<IndxKey, SbktKey> MIN_SBKT_BY_INDEX = new TreeMap<>();
       Map<SbktKey, Set<IndxKey>> SBKT_MAP = new TreeMap<>();
       Set<IndxKey> FRST_SBKT_FINAL_VRP_SET = new TreeSet<>();
+
+      Map<LocationIndxKey, TohInputSource> TOH_INPUT_MAP = new HashMap<>();
+      Set<Location> TOH_INPUT_LOCATION_SET = new TreeSet<>();
 
       Statement st = conn.createStatement();
       ResultSet vrpTestRs = st.executeQuery(VrpTestSource.GET_VRP_TEST_SOURCE);
@@ -95,8 +109,7 @@ public final class Func {
           indxKey,
           key -> new SbktKey(Integer.MAX_VALUE)
         );
-        //TODO change to compare
-        if (sbkt.getValue() < dcSbkt.getValue()) MIN_SBKT_BY_INDEX.put(indxKey, sbkt);
+        if (dcSbkt.compareTo(sbkt)>0) MIN_SBKT_BY_INDEX.put(indxKey, sbkt);
 
         if (vrpTestSource.getFinalVrp() > 0) FRST_SBKT_FINAL_VRP_SET.add(indxKey);
       }
@@ -115,7 +128,7 @@ public final class Func {
 
       st = conn.createStatement();
       ResultSet eohByProductRs = st.executeQuery(GET_EOH);
-      Map<Location, Integer> EOH_BY_PRODUCT = new HashMap<>();
+
       while (eohByProductRs.next()) {
         Location loc = new Location(eohByProductRs.getString(LOCATION_NAME));
         Integer value = eohByProductRs.getInt(VALUE_NAME);
@@ -125,23 +138,84 @@ public final class Func {
       logger.info("EOH_BY_PRODUCT size: " + EOH_BY_PRODUCT.size());
 
       st = conn.createStatement();
-      ResultSet rcptSourceRs = st.executeQuery(RcptSource.GET_RCPT_SOURCE);
-      Map<LocationIndxKey, RcptSource> RCPT_SOURCE_MAP = new HashMap<>();
-      Map<IndxKey, List<RcptSource>> RCPT_SOURCE_MAP_BY_INDX = new HashMap<>();
-      while (rcptSourceRs.next()) {
-        LocationIndxKey locIndxKey = new LocationIndxKey(rcptSourceRs);
-        IndxKey indxKey = new IndxKey(locIndxKey.getIndx());
-        RcptSource rcpt = new RcptSource(rcptSourceRs);
-        RCPT_SOURCE_MAP.put(locIndxKey, rcpt);
-        List<RcptSource> list = RCPT_SOURCE_MAP_BY_INDX.computeIfAbsent(
-          indxKey,
-          key -> new ArrayList<>()
-        );
-        list.add(rcpt);
+      ResultSet vLtRs = st.executeQuery(GET_V_LT);
+
+      while (vLtRs.next()) {
+        Location loc = new Location(vLtRs.getString(LOCATION_NAME));
+        Integer value = vLtRs.getInt(VALUE_NAME);
+        V_LT.put(loc, value);
       }
       st.close();
-      logger.info("RCPT_SOURCE_MAP size: " + RCPT_SOURCE_MAP.size());
+      logger.info("V_LT size: " + V_LT.size());
 
+      st = conn.createStatement();
+      ResultSet tohInputRs = st.executeQuery(TohInputSource.GET_TOH_INPUT_SOURCE);
+
+      while (tohInputRs.next()) {
+        LocationIndxKey key = new LocationIndxKey(tohInputRs);
+        TohInputSource tohInputSource = new TohInputSource(tohInputRs);
+        TOH_INPUT_MAP.put(key, tohInputSource);
+        TOH_INPUT_LOCATION_SET.add(key.getLocation());
+      }
+      st.close();
+      logger.info("TOH_INPUT_MAP size: " + TOH_INPUT_MAP.size());
+
+      for(Location str : TOH_INPUT_LOCATION_SET ) {
+        int vLtValue = V_LT.getOrDefault(str,0);
+        int eohValue = EOH_BY_PRODUCT.getOrDefault(str, 0);
+
+        for(int t = v_plancurrent; t <= v_planend; ++t) {  //Change this to Max (Plan_Current, Debut_Week) to Min (Exit_Week, Plan_End)
+          LocationIndxKey key = new LocationIndxKey(str, t);
+          LocationIndxKey prevKey = new LocationIndxKey(str, t-1);
+          TohInputSource TOH_INPUT_CUR = TOH_INPUT_MAP.getOrDefault(key, TohInputSource.Default);
+          RcptSource RCPT_PREV = RCPT_SOURCE_MAP.getOrDefault(prevKey, RcptSource.Default);
+
+
+          int vUncFcst = TOH_INPUT_CUR.getUncFcst();
+          int vToh = TOH_INPUT_CUR.getToh();
+          int vUncBoh = (t == v_plancurrent) ? eohValue : Math.max(0, RCPT_PREV.getUncBoh() + RCPT_PREV.getUncNeed() - RCPT_PREV.getUncFcst());
+          int vExistInv = (t == v_plancurrent) ? eohValue : Math.max(0, RCPT_PREV.getUncBoh() - RCPT_PREV.getUncFcst());
+          int vUncNeed = (t < v_plancurrent + vLtValue) ? 0 : Math.max(0, vToh - vUncBoh);
+
+          int vExistInvTemp = (t == v_plancurrent) ? eohValue : Math.max(0,RCPT_PREV.getExistInv() - RCPT_PREV.getExistSlsu());
+          int vConsSlsu = (t < v_plancurrent + vLtValue) ? 0 : Math.min(vExistInvTemp, vUncFcst);
+          int vConsEoh = (t < v_plancurrent + vLtValue) ? 0 : vExistInvTemp - vConsSlsu;
+          int vExistSlsu = Math.min(vExistInv,vUncFcst);
+
+          RcptSource rcpt = new RcptSource(vLtValue, vToh, vUncBoh, vUncNeed, vUncFcst, vExistInv, vExistSlsu, vConsSlsu, vConsEoh);
+          RCPT_SOURCE_MAP.put(key, rcpt);
+
+          List<RcptSource> list = RCPT_SOURCE_MAP_BY_INDX.computeIfAbsent(
+            new IndxKey(t),
+            a -> new ArrayList<>()
+          );
+          list.add(rcpt);
+
+          LocationIndxKey laggedKey = new LocationIndxKey(str, t - vLtValue);
+          RcptSource sourceLagged = RCPT_SOURCE_MAP.get(laggedKey);
+          if(sourceLagged == null) {
+            RcptSource rcptLagged = new RcptSource(vLtValue, vUncFcst, vToh, vUncNeed, vConsEoh);
+
+            RCPT_SOURCE_MAP.put(
+              laggedKey,
+              rcptLagged
+            );
+            List<RcptSource> list2 = RCPT_SOURCE_MAP_BY_INDX.computeIfAbsent(
+              new IndxKey(t),
+              a -> new ArrayList<>()
+            );
+            list2.add(rcptLagged);
+          }
+          else {
+            sourceLagged.setConsEohLt(vConsEoh);
+            sourceLagged.setTohLt(vToh);
+            sourceLagged.setUncFcstLt(vUncFcst);
+            sourceLagged.setUncNeedLt(vUncNeed);
+          }
+        }
+      }
+
+/*
       Set<Location> LOCATION_SET = new TreeSet<>();
       RCPT_SOURCE_MAP.keySet().forEach(
         key -> {
@@ -149,7 +223,7 @@ public final class Func {
         }
       );
       logger.info("LOCATION_SET size: " + LOCATION_SET.size());
-
+*/
       //TODO Create DC_SOURCE_MAP
       int EOH_BY_PRODUCT_DC = EOH_BY_PRODUCT.getOrDefault("DC", 0);
       Map<SbktKey, List<DcSource>> dcSourceMapBySbkt = new TreeMap<>();
@@ -173,23 +247,18 @@ public final class Func {
 
         DcSource DC_PREV = DC_SOURCE_MAP.getOrDefault(prevIndxKey, DcSource.Default);
 
-        int DC_POH;
-        if (t == v_plancurrent) DC_POH = EOH_BY_PRODUCT_DC;
-        else DC_POH = DC_PREV.getDcPoh() + DC_PREV.getDcRaw() - DC_PREV.getOutbound();
+        int DC_POH = (t == v_plancurrent) ? DC_POH = EOH_BY_PRODUCT_DC :
+          DC_PREV.getDcPoh() + DC_PREV.getDcRaw() - DC_PREV.getOutbound();
 
-        int Used_Need;
-        if (t == v_plancurrent) Used_Need = RCPT_CUR_Agg_Unc_Need_DC;
-        else Used_Need = Math.min(RCPT_CUR_Agg_Unc_TOH_DC, RCPT_CUR_Agg_Unc_Need_DC + DC_PREV.getDeficit());
+        int Used_Need = (t == v_plancurrent) ? RCPT_CUR_Agg_Unc_Need_DC :
+          Math.min(RCPT_CUR_Agg_Unc_TOH_DC, RCPT_CUR_Agg_Unc_Need_DC + DC_PREV.getDeficit());
 
-        int DC_Raw;
-        if (t < frstSbktFinalVrp) DC_Raw = 0;
-        else if (VRP_TEST.getCons() == 1) DC_Raw = VRP_TEST.getFinalQty();
-        else DC_Raw = Math.abs(Used_Need - DC_POH);
-
+        int DC_Raw = (t < frstSbktFinalVrp) ? 0 :
+          (VRP_TEST.getCons() == 1) ? VRP_TEST.getFinalQty() : Math.max(0, Used_Need - DC_POH);
         Ttl_DC_Rcpt += DC_Raw;
 
         int Outbound = Math.min(Used_Need, DC_POH + DC_Raw);
-        int Deficit = Math.abs(Used_Need - Outbound);
+        int Deficit = Math.max(0, Used_Need - Outbound);
 
 
         DcSource dcSource = new DcSource(
@@ -231,7 +300,7 @@ public final class Func {
 
         int value;
         if (Ttl_Str_Unc_Need == 0) value = 0;
-        else value = half_round(Ttl_DC_Rcpt + EOH_BY_PRODUCT_DC * StrUncNeedValue / (double) Ttl_Str_Unc_Need);
+        else value = half_round((Ttl_DC_Rcpt + EOH_BY_PRODUCT_DC) * StrUncNeedValue / (double) Ttl_Str_Unc_Need);
 
         INIT_MAX_CONS.put(locationKey, value);
       }
@@ -250,7 +319,7 @@ public final class Func {
         for (IndxKey indxKey : INDX_SET) {
           int t = indxKey.getValue();
           if (v_sbkt_start < 0) v_sbkt_start = t;
-          for (Location str : LOCATION_SET) {
+          for (Location str : TOH_INPUT_LOCATION_SET) {//TODO LOCATION_SET) {
             LocationIndxKey key = new LocationIndxKey(str, t);
             LocationIndxKey prevKey = new LocationIndxKey(str, t - 1);
 
@@ -260,16 +329,20 @@ public final class Func {
             int Temp_BOH;
             int Temp_Cons;
             if (t == v_sbkt_start) {
-              Temp_BOH = t == v_plancurrent && RCPT_CUR.getLeadTime() == 0 ? EOH_BY_PRODUCT.getOrDefault(str, 0) :
+              Temp_BOH = (t == v_plancurrent && RCPT_CUR.getLeadTime() == 0) ? EOH_BY_PRODUCT.getOrDefault(str, 0) :
                 RCPT_PREV.getConsEohLt();
-              Temp_Cons = t == vFrstSbkt ? INIT_MAX_CONS.getOrDefault(str, 0) :
-                Math.abs(RCPT_PREV.getMaxConsLt() - RCPT_PREV.getConsRcptLt());
-            } else {
+
+              Temp_Cons = (t == vFrstSbkt) ? INIT_MAX_CONS.getOrDefault(str, 0) :
+                Math.max(0, RCPT_PREV.getMaxConsLt() - RCPT_PREV.getConsRcptLt());
+            }
+            else {
               Temp_BOH = RCPT_PREV.getTempEoh();
-              Temp_Cons = Math.abs(RCPT_PREV.getTempCons() - RCPT_PREV.getTempRcpt());
+              Temp_Cons = Math.max(0, RCPT_PREV.getTempCons() - RCPT_PREV.getTempRcpt());
             }
 
-            int Temp_Need = Temp_Cons > 0 ? Math.abs(RCPT_CUR.getTohLt() - Temp_BOH) : 0;
+
+
+            int Temp_Need = Temp_Cons > 0 ? Math.max(0, RCPT_CUR.getTohLt() - Temp_BOH) : 0;
             int Temp_Rcpt = Temp_Need;
             int Temp_SlsU = Math.min(RCPT_CUR.getUncFcstLt(), Temp_BOH + Temp_Rcpt);
             int Temp_EOH = Temp_BOH + Temp_Rcpt - Temp_SlsU;
@@ -318,7 +391,7 @@ public final class Func {
           IndxKey prevIndxKey = new IndxKey(t - 1);
 
           DcSource DC_CUR = DC_SOURCE_MAP.getOrDefault(indxKey, DcSource.Default);
-          DcTarget DC_PREV = DC_TARGET_MAP.getOrDefault(prevIndxKey, DcTarget.Default);
+          DcSource DC_PREV = DC_SOURCE_MAP.getOrDefault(prevIndxKey, DcSource.Default);
 
           int DC_OH_Rsv = (t == v_plancurrent) ? DC_CUR.getDcPoh() :
             DC_PREV.getDcOhRsv() + DC_PREV.getDcRcpt() - DC_PREV.getaOut();
@@ -327,7 +400,7 @@ public final class Func {
 
           int A_OUT = 0;
 
-          for (Location str : LOCATION_SET) {
+          for (Location str : TOH_INPUT_LOCATION_SET) { // TODO LOCATION_SET) {
             LocationIndxKey key = new LocationIndxKey(str, t);
             LocationIndxKey prevKey = new LocationIndxKey(str, t - 1);
 
@@ -341,14 +414,15 @@ public final class Func {
               RCPT_PREV.getConsBohLt() + RCPT_PREV.getConsRcptLt() - RCPT_PREV.getConsSlsuLt();
             RCPT_TARGET.setConsBohLt(Cons_BOH_LT);
 
+
             int PO_Alloc_LT = (t == v_sbkt_start) ? half_round(DC_ATA * ratioMap.getOrDefault(str, 0.0)) : 0;
             RCPT_TARGET.setPoAllocLt(PO_Alloc_LT);
 
-            int Cons_Need_LT = Math.abs(RCPT_CUR.getTohLt() - Cons_BOH_LT);
+            int Cons_Need_LT = Math.max(0,RCPT_CUR.getTohLt() - Cons_BOH_LT);
             RCPT_TARGET.setConsNeedLt(Cons_Need_LT);
 
             int Max_Cons_LT = (t == vFrstSbkt) ? INIT_MAX_CONS.getOrDefault(str, 0) :
-              Math.abs(RCPT_PREV.getMaxConsLt() - RCPT_PREV.getConsRcptLt());
+              Math.max(0, RCPT_PREV.getMaxConsLt() - RCPT_PREV.getConsRcptLt());
             RCPT_TARGET.setMaxConsLt(Max_Cons_LT);
 
             int Cons_Avl_LT = (t == v_sbkt_start) ? Math.min(Max_Cons_LT, PO_Alloc_LT) : RCPT_PREV.getUnAllocLt();
@@ -357,24 +431,22 @@ public final class Func {
             int Cons_Rcpt_LT = Math.min(Cons_Need_LT, Cons_Avl_LT);
             RCPT_TARGET.setConsRcptLt(Cons_Rcpt_LT);
 
-            int UnAlloc_LT = Math.abs(Cons_Avl_LT - Cons_Rcpt_LT);
+            int UnAlloc_LT = Math.max(0, Cons_Avl_LT - Cons_Rcpt_LT);
             RCPT_TARGET.setUnAllocLt(UnAlloc_LT);
 
             int Cons_SlsU_LT = Math.min(RCPT_CUR.getUncFcstLt(), Cons_BOH_LT + Cons_Rcpt_LT);
             RCPT_TARGET.setConsSlsuLt(Cons_SlsU_LT);
 
             int Cons_EOH_LT = Math.max(0, Cons_BOH_LT + Cons_Rcpt_LT - Cons_SlsU_LT);
+
             RCPT_TARGET.setConsEohLt(Cons_EOH_LT);
 
             A_OUT += Cons_Rcpt_LT;
 
           }
-          DC_TARGET_MAP.put(indxKey, new DcTarget(
-            DC_CUR.getDcRcpt(),
-            DC_OH_Rsv,
-            DC_ATA,
-            A_OUT
-          ));
+          DC_CUR.setaOut(A_OUT);
+          DC_CUR.setDcAta(DC_ATA);
+          DC_CUR.setDcOhRsv(DC_OH_Rsv);
         }
       }
 
@@ -383,7 +455,7 @@ public final class Func {
         LocationIndxKey key = rcptEntry.getKey();
         RcptTarget target = rcptEntry.getValue();
 
-        DcTarget dcTarget = DC_TARGET_MAP.getOrDefault(new IndxKey(key.getIndx()), DcTarget.Default);
+        DcSource dcTarget = DC_SOURCE_MAP.getOrDefault(new IndxKey(key.getIndx()), DcSource.Default);
         rs.addRow(
           key.getIndx(),
           key.getLocation().getValue(),
