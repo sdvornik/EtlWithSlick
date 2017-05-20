@@ -1,13 +1,8 @@
 package com.yahoo.sdvornik.db.dc;
 
-import com.yahoo.sdvornik.db.IndxKey;
+public class Dc {
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-
-public class DcSource {
-
-  public final static DcSource Default = new DcSource();
+  public final static Dc Default = new Dc();
 
   private final int dcPoh;
   private final int dcRaw;
@@ -21,7 +16,7 @@ public class DcSource {
   private int dcAta;
   private int aOut;
 
-  public DcSource(
+  public Dc(
     int dcPoh,
     int dcRaw,
     int outbound,
@@ -41,7 +36,7 @@ public class DcSource {
     this.aOut = 0;
   }
 
-  private DcSource() {
+  private Dc() {
     this.dcPoh = 0;
     this.dcRaw = 0;
     this.outbound = 0;

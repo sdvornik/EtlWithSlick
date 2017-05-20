@@ -4,7 +4,7 @@ public final class Location implements Comparable<Location>{
   private final String value;
 
   public Location(String value) {
-    this.value = value;
+    this.value = value.trim();
   }
 
   public String getValue() {

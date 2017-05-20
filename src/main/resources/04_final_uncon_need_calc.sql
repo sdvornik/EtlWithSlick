@@ -1,5 +1,21 @@
---[2017-04-08 21:43:29] Summary: 15 of 15 statements executed in 4s 398ms (6907 symbols in file)
-
-create table A_OUTPUT AS (
-  SELECT * FROM FINAL_UNCONS_MOD(936, 1039)
+create table RCPT AS (
+    SELECT * FROM FINAL_UNCONS_MOD()
 );
+
+create table DC AS (
+SELECT DISTINCT
+    "idx" AS indx
+    ,"sbkt" AS dc_sbkt
+    ,"dc_raw"
+    ,"outbound"
+    ,"dc_poh"
+    ,"deficit"
+    ,"dc_rcpt"
+    ,"dc_oh_rsv"
+    ,"dc_ata"
+    ,"a_out"
+FROM RCPT
+);
+
+ALTER TABLE public.RCPT DROP COLUMN "dc_raw", "outbound", "dc_poh", "deficit", "dc_rcpt", "dc_oh_rsv", "dc_ata", "a_out";
+
