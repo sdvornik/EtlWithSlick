@@ -166,10 +166,4 @@ drop table VRP_SET_3;
 drop table FINAL_VRP_CALC;
 drop table VRP_SET_4;
 
-
-
-
-
-
-
-
+--drop table VRP_TEST;

@@ -13,6 +13,7 @@ create table UPDATE_TOH AS (
       ,fcst AS unc_fcst
       ,0 AS toh
     FROM TOH_INPUT
+    ORDER BY location, week_indx
 );
 --[2017-04-08 21:36:25] completed in 158ms
 CREATE HASH INDEX UPDATE_TOH_location_idx ON UPDATE_TOH(location);
@@ -102,26 +103,33 @@ create table REC_LOCATION_EXT AS (
   LEFT join LKP_REC ON
     REC_LOCATION.location = LKP_REC.location and
     REC_LOCATION.indx = LKP_REC.indx
+  ORDER BY location, indx
 );
 --[2017-04-08 21:39:51] completed in 169ms
 CREATE HASH INDEX REC_LOCATION_EXT_location_idx ON REC_LOCATION_EXT(location);
 
+
 --[2017-04-02 10:49:43] completed in 6s 426ms
+--create table V_TOH_MOD AS (
+--  SELECT
+--    REC_LOCATION_EXT.location
+--    ,REC_LOCATION_EXT.indx
+--    ,sum(UPDATE_TOH.Unc_Fcst) AS toh
+--  FROM UPDATE_TOH
+--  JOIN REC_LOCATION_EXT ON
+--    UPDATE_TOH.location = REC_LOCATION_EXT.location
+--  WHERE
+--    UPDATE_TOH.indx >= REC_LOCATION_EXT.indx AND
+--    UPDATE_TOH.indx < REC_LOCATION_EXT.max_index
+--  GROUP BY REC_LOCATION_EXT.location, REC_LOCATION_EXT.indx
+--);
+
 create table V_TOH_MOD AS (
-  SELECT
-    REC_LOCATION_EXT.location
-    ,REC_LOCATION_EXT.indx
-    ,sum(UPDATE_TOH.Unc_Fcst) AS toh
-  FROM UPDATE_TOH
-  JOIN REC_LOCATION_EXT ON
-    UPDATE_TOH.location = REC_LOCATION_EXT.location AND
-    UPDATE_TOH.indx >= REC_LOCATION_EXT.indx AND
-    UPDATE_TOH.indx < REC_LOCATION_EXT.max_index
-  GROUP BY REC_LOCATION_EXT.location, REC_LOCATION_EXT.indx
+  SELECT * FROM CUSTOM_JOIN_TABLES('UPDATE_TOH', 'REC_LOCATION_EXT')
 );
 
 --[2017-04-08 18:08:21] completed in 150ms
-CREATE HASH INDEX V_TOH_MOD_location_idx ON V_TOH_MOD(location, indx);
+CREATE HASH INDEX V_TOH_MOD_location_idx ON V_TOH_MOD("location", "indx");
 
 --[2017-04-02 11:26:14] completed in 648ms
 create table TOH_INPUT_1 AS (
@@ -135,11 +143,11 @@ create table TOH_INPUT_1 AS (
     num_sizes,
     toh_calc,
     unc_fcst,
-    V_TOH_MOD.toh
+    V_TOH_MOD."toh" AS toh
   FROM UPDATE_TOH
   LEFT JOIN V_TOH_MOD ON
-    UPDATE_TOH.location = V_TOH_MOD.location AND
-    UPDATE_TOH.indx = V_TOH_MOD.indx
+    UPDATE_TOH.location = V_TOH_MOD."location" AND
+    UPDATE_TOH.indx = V_TOH_MOD."indx"
 );
 --[2017-04-08 21:41:14] completed in 137ms
 CREATE HASH INDEX TOH_INPUT_1_indx_idx ON TOH_INPUT_1(indx);

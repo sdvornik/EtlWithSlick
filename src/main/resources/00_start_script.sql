@@ -7,6 +7,8 @@ CREATE ALIAS HALF_ROUND FOR "com.yahoo.sdvornik.db.Func.half_round";
 
 CREATE ALIAS FINAL_UNCONS_MOD FOR "com.yahoo.sdvornik.db.Func.final_uncons_mod";
 
+CREATE ALIAS CUSTOM_JOIN_TABLES FOR "com.yahoo.sdvornik.db.Func2.custom_join_tables";
+
 CREATE UNIQUE HASH INDEX loc_base_location_idx ON #LOC_BASE_FCST_PRODUCT#(location, week_indx);
 
 CREATE UNIQUE HASH INDEX DEPARTMENT_product_idx ON DEPARTMENT(product);
