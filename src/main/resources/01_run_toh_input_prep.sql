@@ -207,4 +207,4 @@ drop table LOCATION_INDX_KEYS;
 drop table STORE_LIST_WITH_LYFECYLE;
 drop table PRE_TEMP_TOH_INPUT;
 drop table LOC_BASE_FCST_WITH_FRONTLINE;
---drop table TOH_INPUT;
+

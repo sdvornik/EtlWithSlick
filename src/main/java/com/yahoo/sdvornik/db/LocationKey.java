@@ -1,9 +1,9 @@
 package com.yahoo.sdvornik.db;
 
-public final class Location implements Comparable<Location>{
+public final class LocationKey implements Comparable<LocationKey>{
   private final String value;
 
-  public Location(String value) {
+  public LocationKey(String value) {
     this.value = value.trim();
   }
 
@@ -18,13 +18,13 @@ public final class Location implements Comparable<Location>{
 
   @Override
   public boolean equals(Object obj) {
-    if(!(obj instanceof Location)) return false;
-    Location other = (Location) obj;
+    if(!(obj instanceof LocationKey)) return false;
+    LocationKey other = (LocationKey) obj;
     return value.equals(other.value);
   }
 
   @Override
-  public int compareTo(Location o) {
+  public int compareTo(LocationKey o) {
     return value.compareTo(o.value);
   }
 }

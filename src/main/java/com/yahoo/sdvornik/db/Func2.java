@@ -14,8 +14,8 @@ public class Func2 {
 
   private Func2() {}
 
-  private final static Map<Location,Map<IndxKey,Integer>> UPDATE_TOH_MAP = new HashMap<>();
-  private final static Map<Location,Map<IndxKey,Integer>> REC_LOCATION_EXT_MAP = new HashMap<>();
+  private final static Map<LocationKey,Map<IndxKey,Integer>> UPDATE_TOH_MAP = new HashMap<>();
+  private final static Map<LocationKey,Map<IndxKey,Integer>> REC_LOCATION_EXT_MAP = new HashMap<>();
   private final static Map<LocationIndxKey, Integer> AGG_MAP = new HashMap<>();
 
   private final static String LOCATION_NAME = "location";
@@ -33,10 +33,10 @@ public class Func2 {
       readFromUpdateTohTable(conn, UPDATE_TOH_NAME);
       readFromRecLocationExtTable(conn, REC_LOCATION_EXT);
 
-      Iterator<Map.Entry<Location, Map<IndxKey, Integer>>> iterator = UPDATE_TOH_MAP.entrySet().iterator();
+      Iterator<Map.Entry<LocationKey, Map<IndxKey, Integer>>> iterator = UPDATE_TOH_MAP.entrySet().iterator();
       while (iterator.hasNext()) {
-        Map.Entry<Location, Map<IndxKey, Integer>> updateTohEntry = iterator.next();
-        Location loc = updateTohEntry.getKey();
+        Map.Entry<LocationKey, Map<IndxKey, Integer>> updateTohEntry = iterator.next();
+        LocationKey loc = updateTohEntry.getKey();
         Map<IndxKey, Integer> updateTohValue = updateTohEntry.getValue();
 
         Map<IndxKey, Integer> recLocationExtValue = REC_LOCATION_EXT_MAP.get(loc);
@@ -106,7 +106,7 @@ public class Func2 {
     try(Statement st = conn.createStatement()) {
       ResultSet updateTohRs = st.executeQuery(GET_UPDATE_TOH);
       while (updateTohRs.next()) {
-        Location loc = new Location(updateTohRs.getString(LOCATION_NAME));
+        LocationKey loc = new LocationKey(updateTohRs.getString(LOCATION_NAME));
         IndxKey indxKey = new IndxKey(updateTohRs.getInt(INDEX_NAME));
         Integer value = updateTohRs.getInt(UNC_FCST_NAME);
         Map<IndxKey,Integer> map = UPDATE_TOH_MAP.computeIfAbsent(loc, key -> new TreeMap<>());
@@ -124,7 +124,7 @@ public class Func2 {
     try(Statement st = conn.createStatement()) {
       ResultSet recLocationExtRs = st.executeQuery(GET_REC_LOCATION_EXT);
       while (recLocationExtRs.next()) {
-        Location loc = new Location(recLocationExtRs.getString(LOCATION_NAME));
+        LocationKey loc = new LocationKey(recLocationExtRs.getString(LOCATION_NAME));
         IndxKey indxKey = new IndxKey(recLocationExtRs.getInt(INDEX_NAME));
         Integer value = recLocationExtRs.getInt(MAX_INDEX_NAME);
         Map<IndxKey,Integer> map = REC_LOCATION_EXT_MAP.computeIfAbsent(loc, key -> new TreeMap<>());

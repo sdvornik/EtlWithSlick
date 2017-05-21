@@ -25,19 +25,19 @@ public final class Func {
     LOCATION_NAME + ", " +
     VALUE_NAME +
     " FROM " + EOH_NAME;
-  private final static Map<Location, Integer> EOH_BY_PRODUCT = new HashMap<>();
+  private final static Map<LocationKey, Integer> EOH_BY_PRODUCT = new HashMap<>();
 
   private final static String V_LT_NAME = "V_LT";
   private final static String GET_V_LT = "SELECT " +
     LOCATION_NAME + ", " +
     VALUE_NAME +
     " FROM " + V_LT_NAME;
-  private final static Map<Location, Integer> V_LT = new HashMap<>();
+  private final static Map<LocationKey, Integer> V_LT = new HashMap<>();
 
   private final static Map<IndxKey, VrpTestSource> VRP_TEST_SOURCE_MAP = new HashMap<>();
 
   private final static Map<LocationIndxKey, TohInputSource> TOH_INPUT_SOURCE_MAP = new HashMap<>();
-  private final static Set<Location> TOH_INPUT_SOURCE_LOCATION_SET = new TreeSet<>();
+  private final static Set<LocationKey> TOH_INPUT_SOURCE_LOCATION_SET = new TreeSet<>();
 
   private final static Map<SbktKey, Set<IndxKey>> SBKT_MAP = new TreeMap<>();
   private final static Map<IndxKey, SbktKey> MIN_SBKT_BY_INDEX = new TreeMap<>();
@@ -80,7 +80,7 @@ public final class Func {
 
       int Ttl_DC_Rcpt = fillDcMap(v_plancurrent, v_planend);
 
-      Map<Location, Integer> INIT_MAX_CONS = calculateInitMaxCons(Ttl_DC_Rcpt);
+      Map<LocationKey, Integer> INIT_MAX_CONS = calculateInitMaxCons(Ttl_DC_Rcpt);
 
 
       for (Map.Entry<SbktKey, Set<IndxKey>> entry : SBKT_MAP.entrySet()) {
@@ -91,12 +91,12 @@ public final class Func {
 
         int v_sbkt_start = -1;
         int temp_need_sbkt_dc = 0;
-        Map<Location, Integer> tempNeedSbktByLocation = new HashMap<>();
+        Map<LocationKey, Integer> tempNeedSbktByLocation = new HashMap<>();
 
         for (IndxKey indxKey : INDX_SET) {
           int t = indxKey.getValue();
           if (v_sbkt_start < 0) v_sbkt_start = t;
-          for (Location str : TOH_INPUT_SOURCE_LOCATION_SET) {
+          for (LocationKey str : TOH_INPUT_SOURCE_LOCATION_SET) {
             LocationIndxKey key = new LocationIndxKey(str, t);
             LocationIndxKey prevKey = new LocationIndxKey(str, t - 1);
 
@@ -137,8 +137,8 @@ public final class Func {
           }
         }
 
-        Map<Location, Double> ratioMap = new HashMap<>();
-        for (Map.Entry<Location, Integer> temp_need_sbkt_entry : tempNeedSbktByLocation.entrySet()) {
+        Map<LocationKey, Double> ratioMap = new HashMap<>();
+        for (Map.Entry<LocationKey, Integer> temp_need_sbkt_entry : tempNeedSbktByLocation.entrySet()) {
           Double ratio = (temp_need_sbkt_dc == 0) ? 0.0 :
             temp_need_sbkt_entry.getValue() / Double.valueOf(temp_need_sbkt_dc);
           ratioMap.put(temp_need_sbkt_entry.getKey(), ratio);
@@ -170,7 +170,7 @@ public final class Func {
 
           int A_OUT = 0;
 
-          for (Location str : TOH_INPUT_SOURCE_LOCATION_SET) {
+          for (LocationKey str : TOH_INPUT_SOURCE_LOCATION_SET) {
             LocationIndxKey key = new LocationIndxKey(str, t);
             LocationIndxKey prevKey = new LocationIndxKey(str, t - 1);
 
@@ -263,14 +263,14 @@ public final class Func {
     return rs;
   }
 
-  private static Map<Location, Integer> calculateInitMaxCons(int Ttl_DC_Rcpt) {
-    Map<Location, Integer> INIT_MAX_CONS = new HashMap<>();
+  private static Map<LocationKey, Integer> calculateInitMaxCons(int Ttl_DC_Rcpt) {
+    Map<LocationKey, Integer> INIT_MAX_CONS = new HashMap<>();
 
     int Ttl_Str_Unc_Need = 0;
-    Map<Location, Integer> Str_Unc_Need = new HashMap<>();
+    Map<LocationKey, Integer> Str_Unc_Need = new HashMap<>();
     for (Map.Entry<LocationIndxKey, Rcpt> rcptEntry : RCPT_MAP.entrySet()) {
       LocationIndxKey key = rcptEntry.getKey();
-      Location locationKey = key.getLocation();
+      LocationKey locationKey = key.getLocation();
       Rcpt rcpt = rcptEntry.getValue();
 
       int localStr_Unc_Need = Str_Unc_Need.getOrDefault(locationKey, 0);
@@ -280,9 +280,9 @@ public final class Func {
 
     }
 
-    int EOH_BY_PRODUCT_DC = EOH_BY_PRODUCT.getOrDefault(new Location("DC"), 0);
-    for (Map.Entry<Location, Integer> StrUncNeedEntry : Str_Unc_Need.entrySet()) {
-      Location locationKey = StrUncNeedEntry.getKey();
+    int EOH_BY_PRODUCT_DC = EOH_BY_PRODUCT.getOrDefault(new LocationKey("DC"), 0);
+    for (Map.Entry<LocationKey, Integer> StrUncNeedEntry : Str_Unc_Need.entrySet()) {
+      LocationKey locationKey = StrUncNeedEntry.getKey();
       int StrUncNeedValue = StrUncNeedEntry.getValue();
 
       int value;
@@ -295,7 +295,7 @@ public final class Func {
   }
 
   private static int fillDcMap(int v_plancurrent, int v_planend) {
-    int EOH_BY_PRODUCT_DC = EOH_BY_PRODUCT.getOrDefault(new Location("DC"), 0);
+    int EOH_BY_PRODUCT_DC = EOH_BY_PRODUCT.getOrDefault(new LocationKey("DC"), 0);
 
     int Ttl_DC_Rcpt = 0;
     for (int t = v_plancurrent; t < v_planend; ++t) {  //Change this to Max (Plan_Current, Debut_Week) to Min (Exit_Week, Plan_End)
@@ -352,7 +352,7 @@ public final class Func {
 
   private static void fillRcptMap(int v_plancurrent, int v_planend) {
 
-    for(Location str : TOH_INPUT_SOURCE_LOCATION_SET) {
+    for(LocationKey str : TOH_INPUT_SOURCE_LOCATION_SET) {
       int vLtValue = V_LT.getOrDefault(str,0);
       int eohValue = EOH_BY_PRODUCT.getOrDefault(str, 0);
 
@@ -467,7 +467,7 @@ public final class Func {
       ResultSet vLtRs = st.executeQuery(GET_V_LT);
 
       while (vLtRs.next()) {
-        Location loc = new Location(vLtRs.getString(LOCATION_NAME));
+        LocationKey loc = new LocationKey(vLtRs.getString(LOCATION_NAME));
         Integer value = vLtRs.getInt(VALUE_NAME);
         V_LT.put(loc, value);
       }
@@ -479,7 +479,7 @@ public final class Func {
     try(Statement st = conn.createStatement()) {
       ResultSet eohByProductRs = st.executeQuery(GET_EOH);
       while (eohByProductRs.next()) {
-        Location loc = new Location(eohByProductRs.getString(LOCATION_NAME));
+        LocationKey loc = new LocationKey(eohByProductRs.getString(LOCATION_NAME));
         Integer value = eohByProductRs.getInt(VALUE_NAME);
         EOH_BY_PRODUCT.put(loc, value);
       }

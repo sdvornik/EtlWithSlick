@@ -108,22 +108,6 @@ create table REC_LOCATION_EXT AS (
 --[2017-04-08 21:39:51] completed in 169ms
 CREATE HASH INDEX REC_LOCATION_EXT_location_idx ON REC_LOCATION_EXT(location);
 
-
---[2017-04-02 10:49:43] completed in 6s 426ms
---create table V_TOH_MOD AS (
---  SELECT
---    REC_LOCATION_EXT.location
---    ,REC_LOCATION_EXT.indx
---    ,sum(UPDATE_TOH.Unc_Fcst) AS toh
---  FROM UPDATE_TOH
---  JOIN REC_LOCATION_EXT ON
---    UPDATE_TOH.location = REC_LOCATION_EXT.location
---  WHERE
---    UPDATE_TOH.indx >= REC_LOCATION_EXT.indx AND
---    UPDATE_TOH.indx < REC_LOCATION_EXT.max_index
---  GROUP BY REC_LOCATION_EXT.location, REC_LOCATION_EXT.indx
---);
-
 create table V_TOH_MOD AS (
   SELECT * FROM CUSTOM_JOIN_TABLES('UPDATE_TOH', 'REC_LOCATION_EXT')
 );

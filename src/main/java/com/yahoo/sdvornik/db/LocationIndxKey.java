@@ -8,15 +8,15 @@ public class LocationIndxKey {
   public final static String LOCATION_NAME = "location";
 
   private final int indx;
-  private final Location location;
+  private final LocationKey location;
 
-  public LocationIndxKey(Location location, int indx) {
+  public LocationIndxKey(LocationKey location, int indx) {
     this.location = location;
     this.indx = indx;
   }
 
   public LocationIndxKey(ResultSet rs) throws SQLException {
-    this.location = new Location(rs.getString(LOCATION_NAME));
+    this.location = new LocationKey(rs.getString(LOCATION_NAME));
     this.indx = rs.getInt(INDEX_NAME);
   }
 
@@ -24,7 +24,7 @@ public class LocationIndxKey {
     return indx;
   }
 
-  public Location getLocation() {
+  public LocationKey getLocation() {
     return location;
   }
 
