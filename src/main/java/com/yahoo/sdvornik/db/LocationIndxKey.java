@@ -9,15 +9,18 @@ public class LocationIndxKey {
 
   private final int indx;
   private final LocationKey location;
+  private final int hash;
 
   public LocationIndxKey(LocationKey location, int indx) {
     this.location = location;
     this.indx = indx;
+    this.hash = 31*location.hashCode()+indx;
   }
 
   public LocationIndxKey(ResultSet rs) throws SQLException {
     this.location = new LocationKey(rs.getString(LOCATION_NAME));
     this.indx = rs.getInt(INDEX_NAME);
+    this.hash = 31*location.hashCode()+indx;
   }
 
   public int getIndx() {
@@ -30,11 +33,7 @@ public class LocationIndxKey {
 
   @Override
   public int hashCode() {
-    StringBuilder sb = new StringBuilder();
-    sb.append(indx);
-    sb.append('\u0009');
-    sb.append(location);
-    return sb.toString().hashCode();
+    return hash;
   }
 
   @Override
