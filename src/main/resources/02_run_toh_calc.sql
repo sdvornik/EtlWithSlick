@@ -3,7 +3,7 @@
 create table UPDATE_TOH AS (
     SELECT
       location
-      ,week_indx AS indx
+      ,indx
       ,debut
       ,too
       ,md_start
@@ -13,7 +13,7 @@ create table UPDATE_TOH AS (
       ,fcst AS unc_fcst
       ,0 AS toh
     FROM TOH_INPUT
-    ORDER BY location, week_indx
+    ORDER BY location, indx
 );
 --[2017-04-08 21:36:25] completed in 158ms
 CREATE HASH INDEX UPDATE_TOH_location_idx ON UPDATE_TOH(location);
@@ -53,9 +53,9 @@ create table LKP_REC AS (
       ,min(woc) AS woc
     from INV_MODEL
     LEFT JOIN DEPARTMENT_SET ON
-       DEPARTMENT_SET.department = INV_MODEL.product
+       DEPARTMENT_SET."department" = INV_MODEL."department"
     LEFT JOIN REC_LOCATION ON
-      INV_MODEL.sizes = REC_LOCATION.num_sizes and
+      INV_MODEL."num_sizes" = REC_LOCATION.num_sizes and
       INV_MODEL.too = REC_LOCATION.too
     where
       INV_MODEL.aps_lower <  REC_LOCATION.Unc_Fcst and
@@ -71,9 +71,9 @@ create table LKP_REC AS (
       ,min(woc) AS woc
     from INV_MODEL
     LEFT JOIN DEPARTMENT_SET ON
-    DEPARTMENT_SET.department = INV_MODEL.product
+    DEPARTMENT_SET."department" = INV_MODEL."department"
     LEFT JOIN REC_LOCATION ON
-      INV_MODEL.sizes = REC_LOCATION.num_sizes and
+      INV_MODEL."num_sizes" = REC_LOCATION.num_sizes and
       INV_MODEL.too = REC_LOCATION.too
     where
       INV_MODEL.aps_lower <  REC_LOCATION.Unc_Fcst and
@@ -146,10 +146,11 @@ create table TOH_INPUT_2 AS (
     TOH_INPUT_1.location
     ,indx
     ,coalesce(unc_fcst,0) AS unc_fcst
-    ,coalesce(CAST(toh AS int),0) AS toh, coalesce(EOH.eoh, 0) AS eoh_by_location
+    ,coalesce(CAST(toh AS int),0) AS toh,
+    coalesce(EOH.eoh, 0) AS eoh_by_location
   FROM TOH_INPUT_1
   LEFT JOIN EOH ON
-     TOH_INPUT_1.location = EOH.location
+     TOH_INPUT_1.location = EOH."location"
   JOIN ARGS ON
     TOH_INPUT_1.indx >= ARGS.v_plancurrent AND
     TOH_INPUT_1.indx <= ARGS.v_planend
@@ -160,21 +161,21 @@ CREATE HASH INDEX TOH_INPUT_2_location_indx_idx ON TOH_INPUT_2(location, indx);
 --[2017-04-08 16:40:17] completed in 87ms
 create table V_LT AS (
   SELECT
-    BOD.location
+    BOD."location" AS location
     ,bod AS value
   from BOD
   join DEPARTMENT_SET ON
-    BOD.department = DEPARTMENT_SET.department
+    BOD."department" = DEPARTMENT_SET."department"
   join (
     SELECT distinct
       location
     FROM TOH_INPUT_2
   ) AS STR ON
-    BOD.location = STR.location
+    BOD."location" = STR.location
 );
 
-drop table TOH_INPUT;
-drop table TOH_INPUT_1;
+--drop table TOH_INPUT;
+--drop table TOH_INPUT_1;
 drop table UPDATE_TOH;
 drop table REC_LOCATION;
 drop table LKP_REC;

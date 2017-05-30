@@ -40,7 +40,7 @@ object PostgresDbHelper {
       ,CAST(adj_cost AS DOUBLE PRECISION)
     FROM public.temp_dc_adj AS DC_ADJ
     JOIN public.time AS TIME_T ON DC_ADJ.time=TIME_T.id
-    ORDER BY product,indx DESC;""".as[(String, Int, Int, Int, Int, Int, Int, Double)]
+    ORDER BY product,indx DESC;""".as[(String, Option[Int], Option[Int], Option[Int], Option[Int], Option[Int], Option[Int], Option[Double])]
 
   val eohQuery = sql"""
     SELECT

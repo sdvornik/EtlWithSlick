@@ -3,15 +3,15 @@
 --[2017-04-08 18:27:55] completed in 11ms
 create table VRP_SET_0 AS (
   SELECT
-    TIME_INDX.indx AS time_indx
+    TIME_INDX."indx" AS time_indx
     ,ROWNUM() AS rev_indx
     ,0 AS sys_vrp
     ,0 AS final_vrp
   FROM TIME_INDX, ARGS, ADD_ARGS
   WHERE
-    TIME_INDX.indx >= least(ARGS.v_plancurrent, ADD_ARGS.v_irw) AND
-    TIME_INDX.indx <= ARGS.v_planend
-  ORDER BY indx
+    TIME_INDX."indx" >= least(ARGS.v_plancurrent, ADD_ARGS.v_irw) AND
+    TIME_INDX."indx" <= ARGS.v_planend
+  ORDER BY "indx"
 );
 
 
@@ -85,7 +85,7 @@ create table VRP_SET_3 AS (
         locked_qty is not null or
         on_order_qty is not null or
         oo_revision_qty is not null
-      THEN coalesce(oo_revision_qty, coalesce(on_order_qty, coalesce(user_adj_qty, locked_qty)))
+      THEN coalesce(oo_revision_qty, on_order_qty, user_adj_qty, locked_qty)
       ELSE null
     END AS final_qty
     ,

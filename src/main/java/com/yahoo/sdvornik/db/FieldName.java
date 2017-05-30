@@ -1,0 +1,21 @@
+package com.yahoo.sdvornik.db;
+
+public class FieldName {
+
+  public final static String PRODUCT = "product";
+  public final static String DEPARTMENT = "department";
+  public final static String LOCATION = "location";
+  public final static String INDX = "indx";
+  public final static String FLRSET = "flrset";
+  public final static String GRADE = "grade";
+  public final static String STRCLIMATE = "strclimate";
+  public final static String DBTWK_INDX = "dbtwk_indx";
+  public final static String INITRCPTWK_INDX = "initrcptwk_indx";
+  public final static String ERLSTMKDNWK_INDX = "erlstmkdnwk_indx";
+  public final static String EXITDATE_INDX = "exitdate_indx";
+  public final static String FCST = "fcst";
+  public final static String NUM_SIZES = "num_sizes";
+
+  private FieldName() {}
+
+}

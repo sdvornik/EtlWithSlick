@@ -224,13 +224,13 @@ object H2DbHelper {
 
     class LocBaseFcst(tag: Tag) extends Table[(String, Int, Int)](tag, locBaseName) {
 
-      def location: Rep[String] = column[String]("LOCATION", O.SqlType("VARCHAR(8)") )
+      def location: Rep[String] = column[String](FieldName.LOCATION, O.SqlType("VARCHAR(16)") )
 
-      def week_indx: Rep[Int] = column[Int]("WEEK_INDX")
+      def indx: Rep[Int] = column[Int](FieldName.INDX)
 
-      def fcst: Rep[Int] = column[Int]("FCST")
+      def fcst: Rep[Int] = column[Int](FieldName.FCST)
 
-      def * = (location, week_indx, fcst)
+      def * = (location, indx, fcst)
     }
 
     val locBaseFcst = TableQuery[LocBaseFcst]

@@ -166,7 +166,7 @@ public final class Func {
           int DC_OH_Rsv = (t == v_plancurrent) ? DC_CUR.getDcPoh() :
             DC_PREV.getDcOhRsv() + DC_PREV.getDcRcpt() - DC_PREV.getaOut();
 
-          int DC_ATA = (t == v_sbkt_start) ? DC_CUR.getDcRcpt() + DC_OH_Rsv : DC_OH_Rsv;
+          int DC_ATA = (t == v_sbkt_start) ? (DC_CUR.getDcRcpt() + DC_OH_Rsv) : DC_OH_Rsv;
 
           int A_OUT = 0;
 

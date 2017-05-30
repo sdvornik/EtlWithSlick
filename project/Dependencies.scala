@@ -12,6 +12,7 @@ object Dependencies {
   lazy val scalaLoggingVersion = "3.5.0"
   lazy val slickVersion = "3.2.0"
   lazy val jooqVersion = "3.9.1"
+  lazy val funcJavaVersion = "4.7"
 
   val scalaTest: ModuleID = "org.scalatest" %% "scalatest" % scalaTestVersion
 
@@ -33,6 +34,8 @@ object Dependencies {
 
   val slickHikaricp: ModuleID = "com.typesafe.slick" %% "slick-hikaricp" % slickVersion
 
+  val funcJava: ModuleID = "org.functionaljava" % "functionaljava" % funcJavaVersion
+
   val dependencies: Seq[ModuleID] = Seq(
     scalaTest % Test,
     scalaLogging,
@@ -43,6 +46,7 @@ object Dependencies {
     log4jApi,
     slf4jApi,
     slf4jImpl,
-    slickHikaricp
+    slickHikaricp,
+    funcJava
   )
 }
