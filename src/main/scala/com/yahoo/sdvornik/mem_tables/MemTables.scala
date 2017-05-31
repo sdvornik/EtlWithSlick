@@ -14,7 +14,7 @@ class AttrTime(tag: Tag) extends Table[(String, String, Int)](tag, "ATTR_TIME") 
 class Bod(tag: Tag) extends Table[(String, String, Int)](tag, "BOD") {
   def department: Rep[String] = column[String](FieldName.DEPARTMENT, O.SqlType("VARCHAR(8)"))
   def location: Rep[String] = column[String](FieldName.LOCATION, O.SqlType("VARCHAR(16)"))
-  def bod: Rep[Int] = column[Int]("BOD")
+  def bod: Rep[Int] = column[Int](FieldName.BOD)
   def *  = (department, location, bod)
 }
 
@@ -47,7 +47,7 @@ class Department(tag: Tag) extends Table[(String, String)](tag, "DEPARTMENT") {
 class Eoh(tag: Tag) extends Table[(String, String, Int)](tag, "EOH") {
   def product: Rep[String] = column[String](FieldName.PRODUCT, O.SqlType("VARCHAR(16)"))
   def location: Rep[String] = column[String](FieldName.LOCATION, O.SqlType("VARCHAR(16)"))
-  def eoh: Rep[Int] = column[Int]("EOH")
+  def eoh: Rep[Int] = column[Int](FieldName.EOH)
   def * = (product, location, eoh)
 }
 
@@ -70,10 +70,10 @@ class Frontline(tag: Tag) extends Table[(String, String, String, String, String,
 class InvModel(tag: Tag) extends Table[(String, Int, Int, Long, Long, Int)](tag, "INV_MODEL") {
   def product: Rep[String] = column[String](FieldName.DEPARTMENT, O.SqlType("VARCHAR(8)"))
   def sizes: Rep[Int] = column[Int](FieldName.NUM_SIZES)
-  def too: Rep[Int] = column[Int]("TOO")
-  def aps_lower: Rep[Long] = column[Long]("APS_LOWER")
-  def aps: Rep[Long] = column[Long]("APS")
-  def woc: Rep[Int] = column[Int]("WOC")
+  def too: Rep[Int] = column[Int](FieldName.TOO)
+  def aps_lower: Rep[Long] = column[Long](FieldName.APS_LOWER)
+  def aps: Rep[Long] = column[Long](FieldName.APS)
+  def woc: Rep[Int] = column[Int](FieldName.WOC)
 
   def *  = (product, sizes, too, aps_lower, aps, woc)
 }

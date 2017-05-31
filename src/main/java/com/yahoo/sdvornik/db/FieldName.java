@@ -15,6 +15,12 @@ public class FieldName {
   public final static String EXITDATE_INDX = "exitdate_indx";
   public final static String FCST = "fcst";
   public final static String NUM_SIZES = "num_sizes";
+  public final static String TOO = "too";
+  public final static String APS_LOWER = "aps_lower";
+  public final static String APS= "aps";
+  public final static String WOC= "woc";
+  public final static String EOH= "eoh";
+  public final static String BOD= "bod";
 
   private FieldName() {}
 

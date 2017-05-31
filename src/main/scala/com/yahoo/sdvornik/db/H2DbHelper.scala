@@ -18,10 +18,9 @@ object H2DbHelper {
 
   private val sqlFiles: List[String] =
     "00_start_script.sql" ::
-    "01_run_toh_input_prep.sql" ::
-    "02_run_toh_calc.sql" ::
-    "03_final_dc_vrp_sbkt.sql" ::
-    "04_final_uncon_need_calc.sql" :: Nil
+    "01_create_toh_input_final.sql" ::
+    //"02_create_vrp_test.sql" ::
+    "02_final_step.sql" :: Nil
 
 
   private val h2Db: Database = Database.forConfig("h2memInstance")

@@ -8,7 +8,7 @@ import java.sql.SQLException;
 public class TohInputSource {
   public final static TohInputSource Default = new TohInputSource();
 
-  private final static String TOH_INPUT_NAME = "TOH_INPUT_2";
+  private final static String TOH_INPUT_NAME = "TOH_INPUT_FINAL";
   private final static String UNC_FCST_NAME = "unc_fcst";
   private final static String TOH_NAME = "toh";
 

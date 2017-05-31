@@ -1,46 +1,37 @@
 package com.yahoo.sdvornik.db.toh_input;
 
-public class PreTohInput {
- private final Integer debut;
- private final Integer too;
- private final Integer mdStart;
- private final Integer exit;
- private final Integer numSizes;
- private int tohCalc;
- private int uncFcst;
- private int toh;
+import com.yahoo.sdvornik.db.tuples.TooNumSizesKey;
 
- public PreTohInput(
-   int tohCalc,
-   int uncFcst
- ) {
-   this.debut = null;
-   this.too = null;
-   this.mdStart = null;
-   this.exit = null;
-   this.numSizes = null;
-   this.tohCalc = tohCalc;
-   this.uncFcst = uncFcst;
-   this.toh = 0;
- }
+import java.util.Arrays;
+import java.util.Objects;
 
-  public PreTohInput(int debut, int mdStart, int too, int exit) {
+public final class PreTohInput {
+
+  public final static PreTohInput Default = new PreTohInput();
+
+  private final Integer debut;
+  private final Integer mdStart;
+  private final Integer exit;
+  private final TooNumSizesKey tooNumSizesKey;
+
+
+  private PreTohInput() {
+    this.debut = null;
+    this.mdStart = null;
+    this.exit = null;
+    this.tooNumSizesKey = null;
+  }
+
+  public PreTohInput(int debut, int mdStart, int exit, int too, int numSizes) {
     this.debut = debut;
-    this.too = too;
     this.mdStart = mdStart;
     this.exit = exit;
-    this.numSizes = 0;
-    this.tohCalc = 0;
-    this.uncFcst = 0;
-    this.toh = 0;
+    this.tooNumSizesKey = new TooNumSizesKey(too, numSizes);
+
   }
 
   public int getDebut() {
     return debut;
-  }
-
-  public int getToo() {
-    return too;
   }
 
   public int getMdStart() {
@@ -51,31 +42,23 @@ public class PreTohInput {
     return exit;
   }
 
-  public int getNumSizes() {
-    return numSizes;
+  public TooNumSizesKey getTooNumSizesKey() {
+    return tooNumSizesKey;
   }
 
-  public int getTohCalc() {
-    return tohCalc;
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    PreTohInput that = (PreTohInput) o;
+    return Objects.equals(debut, that.debut) &&
+      Objects.equals(mdStart, that.mdStart) &&
+      Objects.equals(exit, that.exit) &&
+      Objects.equals(tooNumSizesKey, that.tooNumSizesKey);
   }
 
-  public int getUncFcst() {
-    return uncFcst;
-  }
-
-  public int getToh() {
-    return toh;
-  }
-
-  public void setTohCalc(int tohCalc) {
-    this.tohCalc = tohCalc;
-  }
-
-  public void setUncFcst(int uncFcst) {
-    this.uncFcst = uncFcst;
-  }
-
-  public void setToh(int toh) {
-    this.toh = toh;
+  @Override
+  public int hashCode() {
+    return Objects.hash(debut, mdStart, exit, tooNumSizesKey);
   }
 }
