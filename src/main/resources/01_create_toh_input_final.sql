@@ -279,12 +279,27 @@ create table REC_LOCATION_EXT AS (
 --[2017-04-08 21:39:51] completed in 169ms
 CREATE HASH INDEX REC_LOCATION_EXT_location_idx ON REC_LOCATION_EXT(location);
 
+
+
+--create table V_TOH_MOD AS (
+--  SELECT * FROM CUSTOM_JOIN_TABLES('TOH_INPUT', 'REC_LOCATION_EXT')
+--);
+
 create table V_TOH_MOD AS (
-  SELECT * FROM CUSTOM_JOIN_TABLES('TOH_INPUT', 'REC_LOCATION_EXT')
+    SELECT
+      REC_LOCATION_EXT.location
+      ,REC_LOCATION_EXT.indx
+      ,sum(TOH_INPUT.Unc_Fcst) AS toh
+    FROM TOH_INPUT
+    JOIN REC_LOCATION_EXT ON REC_LOCATION_EXT.location = TOH_INPUT.location
+    WHERE TOH_INPUT.indx >= REC_LOCATION_EXT.indx AND
+          TOH_INPUT.indx < REC_LOCATION_EXT.max_index
+    GROUP BY REC_LOCATION_EXT.location, REC_LOCATION_EXT.indx
 );
 
+
 --[2017-04-08 18:08:21] completed in 150ms
-CREATE HASH INDEX V_TOH_MOD_location_idx ON V_TOH_MOD("location", "indx");
+CREATE HASH INDEX V_TOH_MOD_location_idx ON V_TOH_MOD(location, indx);
 
 --[2017-04-02 11:26:14] completed in 648ms
 create table TOH_INPUT_FINAL AS (
@@ -292,11 +307,11 @@ create table TOH_INPUT_FINAL AS (
     TOH_INPUT.location,
     TOH_INPUT.indx,
     TOH_INPUT.unc_fcst,
-    V_TOH_MOD."toh" AS toh
+    V_TOH_MOD.toh
   FROM TOH_INPUT
   LEFT JOIN V_TOH_MOD ON
-    TOH_INPUT.location = V_TOH_MOD."location" AND
-    TOH_INPUT.indx = V_TOH_MOD."indx"
+    TOH_INPUT.location = V_TOH_MOD.location AND
+    TOH_INPUT.indx = V_TOH_MOD.indx
   JOIN ARGS ON
     TOH_INPUT.indx >= ARGS.v_plancurrent AND
     TOH_INPUT.indx <= ARGS.v_planend
