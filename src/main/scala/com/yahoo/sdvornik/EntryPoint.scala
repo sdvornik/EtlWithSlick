@@ -1,16 +1,21 @@
 package com.yahoo.sdvornik
 
-object EntryPoint extends App{
-  import com.yahoo.sdvornik.db.H2DbHelper
+import scala.concurrent.Future
 
-  val server = H2DbHelper.getTCPServer
+
+object EntryPoint extends App{
+
+  import com.yahoo.sdvornik.db_scala.H2DbHelper
 
   val product = "10127-001"  //"10127-001" //"10127-410"
+  val helper = new H2DbHelper(product)
 
-  val lastFuture = H2DbHelper.createMemTables()
-  val nextFuture = H2DbHelper.createProductAndArgsTables(product, 936, 1039, lastFuture)
-  H2DbHelper.executeCalculation(product,nextFuture)
+  val server = helper.getTCPServer
 
+  val future1: Future[Unit] = helper.createMemTables()
+  val future2 = helper.createProductAndArgsTables(product, 936, 1039, future1)
+  val future3 = helper.executeSqlCalculation(product, future2)
+  helper.executeScalaCalculation(product, 936, 1039, future3)
   Thread.sleep(10000000)
-  H2DbHelper.stopTCPServer(server)
+  helper.stopTCPServer(server)
 }

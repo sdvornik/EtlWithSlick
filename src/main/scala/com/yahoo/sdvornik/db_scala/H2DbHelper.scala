@@ -1,6 +1,4 @@
-package com.yahoo.sdvornik.db
-
-import java.sql.Connection
+package com.yahoo.sdvornik.db_scala
 
 import com.typesafe.scalalogging.Logger
 import org.h2.tools.Server
@@ -9,21 +7,49 @@ import slick.sql.SqlAction
 
 import scala.concurrent.Future
 import scala.io.Source
+import scala.util.{Failure, Success, Try}
 
 object H2DbHelper {
+  import slick.jdbc.H2Profile.api._
+  val h2Db: Database = Database.forConfig("h2memInstance")
 
+  import com.yahoo.sdvornik.mem_tables._
+  val attrTime: TableQuery[AttrTime] = TableQuery[AttrTime]
+  val bod: TableQuery[Bod] = TableQuery[Bod]
+  val clStr: TableQuery[ClStr] = TableQuery[ClStr]
+  val dcAdj: TableQuery[DcAdj] = TableQuery[DcAdj]
+  val department: TableQuery[Department] = TableQuery[Department]
+  val eoh: TableQuery[Eoh] = TableQuery[Eoh]
+  val frontline: TableQuery[Frontline] = TableQuery[Frontline]
+  val invModel: TableQuery[InvModel] = TableQuery[InvModel]
+  val storeLookup: TableQuery[StoreLookup] = TableQuery[StoreLookup]
+  val timeIndx: TableQuery[TimeIndx] = TableQuery[TimeIndx]
+  val timeStd: TableQuery[TimeStd] = TableQuery[TimeStd]
+  val vRcptInt: TableQuery[VrcptInt] = TableQuery[VrcptInt]
+  val frontSizes: TableQuery[FrontSizes] = TableQuery[FrontSizes]
+  val vrpTest: TableQuery[VrpTest] = TableQuery[VrpTest]
+}
+
+class H2DbHelper(product: String) {
+  import H2DbHelper._
   import slick.jdbc.H2Profile.api._
 
-  private val log = Logger(H2DbHelper.getClass)
+  private val log = Logger(getClass)
+
+  import com.yahoo.sdvornik.mem_tables.TempProductTables
+  import com.yahoo.sdvornik.mem_tables.Args
+
+  val tempProductTable = new TempProductTables(product)
+
+  Func.locBaseFcstMap.put(product, tempProductTable)
 
   private val sqlFiles: List[String] =
     "00_start_script.sql" ::
     "01_create_toh_input_final.sql" ::
-    //"02_create_vrp_test.sql" ::
     "02_final_step.sql" :: Nil
 
+  private val scalaFile: String = "01_calc_with_scala.sql"
 
-  private val h2Db: Database = Database.forConfig("h2memInstance")
 
   def getTCPServer: Option[Server] = {
     try {
@@ -57,23 +83,6 @@ object H2DbHelper {
   }
 
   def createMemTables(): Future[Unit] = {
-
-    import com.yahoo.sdvornik.mem_tables._
-    val attrTime = TableQuery[AttrTime]
-    val bod = TableQuery[Bod]
-    val clStr = TableQuery[ClStr]
-    val dcAdj = TableQuery[DcAdj]
-    val department = TableQuery[Department]
-    val eoh = TableQuery[Eoh]
-    val frontline = TableQuery[Frontline]
-    val invModel = TableQuery[InvModel]
-    val storeLookup = TableQuery[StoreLookup]
-    val timeIndx = TableQuery[TimeIndx]
-    val timeStd = TableQuery[TimeStd]
-    val vRcptInt = TableQuery[VrcptInt]
-    val frontSizes = TableQuery[FrontSizes]
-
-
     val ddlStatement: H2Profile.DDL =
       attrTime.schema ++
       bod.schema ++
@@ -87,13 +96,14 @@ object H2DbHelper {
       timeIndx.schema ++
       timeStd.schema ++
       vRcptInt.schema ++
-      frontSizes.schema
+      frontSizes.schema ++
+      vrpTest.schema
 
     val ddlStatementAction: H2Profile.ProfileAction[Unit, NoStream, Effect.Schema] = ddlStatement.create
 
     val setup: DBIOAction[Unit, NoStream, Effect.Schema] = DBIO.seq(ddlStatementAction)
 
-    import com.yahoo.sdvornik.db.PostgresDbHelper._
+    import PostgresDbHelper._
     import scala.concurrent.ExecutionContext.Implicits.global
 
     val attrTimeInsert = h2Db.run(setup)
@@ -209,42 +219,18 @@ object H2DbHelper {
 
   def createProductAndArgsTables(product: String, v_plancurrent: Int, v_planend: Int, lastStep: Future[Unit]): Future[Unit] = {
 
-    class Args(tag: Tag) extends Table[(String, Int, Int)](tag, "ARGS") {
-      def product: Rep[String] = column[String]("PRODUCT")
-
-      def v_plancurrent: Rep[Int] = column[Int]("V_PLANCURRENT")
-
-      def v_planend: Rep[Int] = column[Int]("V_PLANEND")
-
-      def * = (product, v_plancurrent, v_planend)
-    }
-
-    val locBaseName = s"LOC_BASE_FCST_$product" map { case '-' => '_';  case x => x}
-
-    class LocBaseFcst(tag: Tag) extends Table[(String, Int, Int)](tag, locBaseName) {
-
-      def location: Rep[String] = column[String](FieldName.LOCATION, O.SqlType("VARCHAR(16)") )
-
-      def indx: Rep[Int] = column[Int](FieldName.INDX)
-
-      def fcst: Rep[Int] = column[Int](FieldName.FCST)
-
-      def * = (location, indx, fcst)
-    }
-
-    val locBaseFcst = TableQuery[LocBaseFcst]
     val args = TableQuery[Args]
     val setup: DBIOAction[Unit, NoStream, Effect.Schema] = DBIO.seq(
-      (locBaseFcst.schema ++ args.schema).create
+      (tempProductTable.locBaseFcst.schema ++ args.schema).create
     )
 
-    import com.yahoo.sdvornik.db.PostgresDbHelper._
+    import PostgresDbHelper._
     import scala.concurrent.ExecutionContext.Implicits.global
 
     val locBaseFcstInsert = h2Db.run(DBIO.from(lastStep))
       .flatMap(_ => h2Db.run(setup) )
       .flatMap(_ => postgresDb.run(productQuery(product)))
-      .flatMap(vector  => h2Db.run(DBIO.seq(locBaseFcst ++= vector)))
+      .flatMap(vector  => h2Db.run(DBIO.seq(tempProductTable.locBaseFcst ++= vector)))
     locBaseFcstInsert.onComplete(x =>
       if (x.isSuccess) log.info("Successfully write to locBaseFcst MemTable")
       else log.error("Can't write to locBaseFcst MemTable",x.failed.get)
@@ -259,12 +245,12 @@ object H2DbHelper {
     argsInsert
   }
 
-  def executeCalculation(product: String, startPoint: Future[Unit]): Unit = {
+  def executeSqlCalculation(product: String, startPoint: Future[Unit]): Future[Unit] = {
     import scala.concurrent.ExecutionContext.Implicits.global
 
     val locBaseName = s"LOC_BASE_FCST_$product" map { case '-' => '_';  case x => x}
 
-    val actionList: List[SqlAction[Int, NoStream, Effect]] = sqlFiles.flatMap(
+    sqlFiles.flatMap(
         Source.fromResource(_)
           .mkString
           .replaceAll("#LOC_BASE_FCST_PRODUCT#", locBaseName)
@@ -273,34 +259,61 @@ object H2DbHelper {
           .toList
           .map(sql => sqlu"""#$sql""")
     )
+    .foldLeft(startPoint: Future[Unit]) {
+      (b: Future[Unit], a: SqlAction[Int, NoStream, Effect]) => {
 
-    startPoint.onComplete(_ => {
-      val startTime = System.currentTimeMillis()
-      var curAction: Option[Future[Int]] = None
-      for(action <- actionList) {
-        val newAction: Future[Int] = curAction match {
-          case Some(x) =>
-            val start = h2Db.run(DBIO.from(x))
-            var optTime: Option[Long] = None
-            start.onComplete(_ => {
-              optTime = Some(System.currentTimeMillis())
-            })
-            val end = start.flatMap(_ => h2Db.run(action))
-            end.onComplete(_ => {
-              for(strQuery <- action.statements) {
-                log.info("COMPLETE QUERY:\n " + strQuery.trim +"\n"+
-                "Execution time: "+(System.currentTimeMillis() - optTime.get)+ " ms\n\n")
-              }
+          b.flatMap(_=> Future {System.currentTimeMillis()}).flatMap((start: Long) => {
+          val endFuture: Future[Int] = h2Db.run(a)
+          val sql = a.statements.head.trim()
+          endFuture.onComplete(
+            (r: Try[Int]) => r match {
+              case Success(s) =>
+                log.info(s"COMPLETE QUERY:\n$sql\nExecution time: " + (System.currentTimeMillis() - start) + " ms\n\n")
+              case Failure(e) =>
+                log.error(s"Failure of sql query\n$sql", e)
+            }
+          )
+          endFuture.map((x: Int) => ())
+        })
 
-            })
-            end
-
-          case None => h2Db.run(action)
-        }
-        curAction = Some(newAction)
       }
-    })
+    }
+  }
 
+  def executeScalaCalculation(
+                               product: String,
+                               v_plancurrent: Int,
+                               v_planend: Int,
+                               startPoint: Future[Unit]
+                             ) {
+    import scala.concurrent.ExecutionContext.Implicits.global
+    val actionList = Source.fromResource(scalaFile)
+        .mkString
+        .replaceAll("#PRODUCT#", s"'$product'")
+        .replaceAll("#V_PLANCURRENT#",v_plancurrent.toString)
+        .replaceAll("#V_PLANEND#",v_planend.toString)
+        .replaceAll("\\s*--.*","")
+        .split(";")
+        .toList
+        .map(sql => sqlu"""#$sql""")
+    .foldLeft(startPoint: Future[Unit]) {
+      (b: Future[Unit], a: SqlAction[Int, NoStream, Effect]) => {
+
+        b.flatMap(_=> Future {System.currentTimeMillis()}).flatMap((start: Long) => {
+          val endFuture: Future[Int] = h2Db.run(a)
+          val sql = a.statements.head.trim()
+          endFuture.onComplete(
+            (r: Try[Int]) => r match {
+              case Success(s) =>
+                log.info(s"COMPLETE QUERY:\n$sql\nExecution time: " + (System.currentTimeMillis() - start) + " ms\n\n")
+              case Failure(e) =>
+                log.error(s"Failure of sql query\n$sql", e)
+            }
+          )
+          endFuture.map((x: Int) => ())
+        })
+      }
+    }
   }
 }
 

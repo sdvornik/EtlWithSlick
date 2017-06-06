@@ -1,5 +1,4 @@
-package com.yahoo.sdvornik.db
-
+package com.yahoo.sdvornik.db_scala
 
 object PostgresDbHelper {
   import slick.jdbc.PostgresProfile.api._

@@ -21,6 +21,11 @@ public class FieldName {
   public final static String WOC= "woc";
   public final static String EOH= "eoh";
   public final static String BOD= "bod";
+  public final static String CONS= "cons";
+  public final static String SBKT= "sbkt";
+  public final static String FINAL_VRP = "final_vrp";
+  public final static String FINAL_QTY = "final_qty";
+
 
   private FieldName() {}
 

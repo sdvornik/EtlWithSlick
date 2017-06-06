@@ -20,12 +20,12 @@ public class VrpTestSource {
 
 
   public final static String GET_VRP_TEST_SOURCE = "SELECT "+
-    IndxKey.INDEX_NAME + ",	"+
-    CONS_NAME + ",	"+
-    FINAL_QTY_NAME + ",	"+
-    FINAL_VRP_NAME + ",	"+
-    SbktKey.SBKT_NAME +
-    " FROM "+VRP_TEST_NAME;
+    "\""+IndxKey.INDEX_NAME + "\",	"+
+    "\""+CONS_NAME + "\",	"+
+    "\""+FINAL_QTY_NAME + "\",	"+
+    "\""+FINAL_VRP_NAME + "\",	"+
+    "\""+SbktKey.SBKT_NAME + "\" "+
+    "FROM "+VRP_TEST_NAME;
 
   private final int cons;
   private final int finalQty;

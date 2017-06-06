@@ -5,6 +5,8 @@ SET CACHE_SIZE 10000000;
 
 CREATE ALIAS create_toh_input_table FOR "com.yahoo.sdvornik.db.Func3.create_toh_input_table";
 
+CREATE ALIAS create_toh_input_table_scala FOR "com.yahoo.sdvornik.db_scala.Func.create_toh_input_table";
+
 CREATE ALIAS HALF_ROUND FOR "com.yahoo.sdvornik.db.Func.half_round";
 
 CREATE ALIAS FINAL_UNCONS_MOD FOR "com.yahoo.sdvornik.db.Func.final_uncons_mod";
@@ -33,8 +35,6 @@ CREATE INDEX INV_MODEL_aps_idx ON INV_MODEL("aps");
 
 CREATE INDEX STORE_LOOKUP_time_idx ON STORE_LOOKUP("indx");
 
-
-
 CREATE HASH INDEX CL_STR_location_strclimate_idx ON CL_STR("location", "strclimate");
 
 --[2017-04-01 18:59:39] completed in 0ms
@@ -44,6 +44,7 @@ create table DEPARTMENT_SET AS (
   from DEPARTMENT
   JOIN ARGS ON DEPARTMENT."product" = ARGS.product
 );
+CREATE HASH INDEX DEPARTMENT_SET_department_idx ON DEPARTMENT_SET("department");
 
 --[2017-04-01 16:01:52] completed in 1ms
 create table FRONT_SOURCE_0 AS (
@@ -56,14 +57,14 @@ create table FRONT_SOURCE_0 AS (
   JOIN ARGS ON FRONTLINE."product" = ARGS.product
 );
 
-CREATE HASH INDEX DEPARTMENT_SET_department_idx ON DEPARTMENT_SET("department");
-
 --[2017-04-01 16:06:41] completed in 0ms
 create table TEMP_STORE_NUMSIZE AS (
   SELECT
     "num_sizes"
   FROM FRONT_SIZES JOIN ARGS ON FRONT_SIZES."product" = ARGS.product
 );
+
+
 
 --[2017-04-01 16:01:19] completed in 15ms
 create table FRONT_EXIT AS (
@@ -266,17 +267,17 @@ create table VRP_SET_4 AS (
 );
 
 --[2017-04-08 18:34:29] completed in 9ms
-create table VRP_TEST AS (
+insert into VRP_TEST ("indx", "cons", "sbkt", "final_vrp", "final_qty")
   SELECT
-    time_indx AS indx
+    time_indx AS "indx"
     ,
     CASE
       WHEN flag IS NOT NULL THEN 1
       ELSE cons
-    END AS cons
-    ,VRP_SET_4.sbkt
-    ,final_vrp
-    ,coalesce(CAST(final_qty AS int),0) AS final_qty
+    END AS "cons"
+    ,VRP_SET_4.sbkt AS "sbkt"
+    ,final_vrp AS "final_vrp"
+    ,coalesce(CAST(final_qty AS int),0) AS "final_qty"
   FROM VRP_SET_4
   LEFT JOIN (
     select distinct
@@ -285,7 +286,7 @@ create table VRP_TEST AS (
     from VRP_SET_4
     where cons=1
   ) AS CONS_CALC ON VRP_SET_4.sbkt = CONS_CALC.sbkt
-);
+;
 
 
 drop table VRP_SET_0;

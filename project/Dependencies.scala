@@ -1,11 +1,8 @@
-/*
- *  Copyright (c) Realine Technology, Inc. 2017
- */
 import sbt._
+
 object Dependencies {
 
   lazy val scalaTestVersion = "3.0.1"
-  lazy val log4jScalaVersion = "2.8.1"
   lazy val slf4jVersion = "1.7.25"
   lazy val h2DbVersion = "1.4.193"
   lazy val postgresDbVersion = "9.1-901-1.jdbc4"
@@ -24,17 +21,14 @@ object Dependencies {
 
   val slick: ModuleID = "com.typesafe.slick" % "slick_2.12" % slickVersion
 
-  val log4jCore: ModuleID = "org.apache.logging.log4j" % "log4j-core" % log4jScalaVersion
-
-  val log4jApi: ModuleID = "org.apache.logging.log4j" % "log4j-api" % log4jScalaVersion
+  val slickHikaricp: ModuleID = "com.typesafe.slick" %% "slick-hikaricp" % slickVersion
 
   val slf4jApi: ModuleID = "org.slf4j" % "slf4j-api" % slf4jVersion
 
   val slf4jImpl: ModuleID = "org.slf4j" % "slf4j-log4j12" % slf4jVersion
 
-  val slickHikaricp: ModuleID = "com.typesafe.slick" %% "slick-hikaricp" % slickVersion
-
   val funcJava: ModuleID = "org.functionaljava" % "functionaljava" % funcJavaVersion
+
 
   val dependencies: Seq[ModuleID] = Seq(
     scalaTest % Test,
@@ -42,11 +36,10 @@ object Dependencies {
     h2Db,
     postgresDb,
     slick,
-    log4jCore,
-    log4jApi,
+    slickHikaricp,
     slf4jApi,
     slf4jImpl,
-    slickHikaricp,
+
     funcJava
   )
 }
