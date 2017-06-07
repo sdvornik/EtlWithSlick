@@ -27,122 +27,95 @@ object Func {
 
   private val DURATION: Duration = Duration(5000, TimeUnit.MILLISECONDS)
 
-  private def readFromDepartment(product: String): Set[String] = {
-    import slick.jdbc.H2Profile.api._
-    val future: Future[Seq[String]] = h2DbExternal.run(department.filter(_.product===product).map(x => x.department).result)
-    Await.result(future, DURATION)
-    val list: Seq[String] = future.value match {
-      case Some(x) => x match {
-        case Success(y) => logger.error("Read department table - size: "+y.size); y
-        case Failure(e) => logger.error("Can't read department table",e); Seq.empty
-      }
-      case None => Seq.empty
-    }
-    list.toSet[String]
-  }
-
   private def readFrontline(product: String, v_plancurrent: Int, v_planend: Int):
-  (M.Map[String, M.Set[FrontlineClimate]], Set[FrontlineExit], Set[FrontlineDbtwkExit], Set[FrontlineWithTime]) = {
+  Future[(M.Map[String, M.Set[FrontlineClimate]], Set[FrontlineExit], Set[FrontlineDbtwkExit], Set[FrontlineWithTime])] = {
 
-    val FRONT_CLIMATE_MAP: M.Map[String, M.Set[FrontlineClimate]] = new M.HashMap()
     import scala.concurrent.ExecutionContext.Implicits.global
     import slick.jdbc.H2Profile.api._
 
-    val frontlineClimateFuture: Future[Unit] = h2DbExternal.run(
+    val frontlineClimateFuture: Future[M.Map[String, M.Set[FrontlineClimate]]] = h2DbExternal.run(
       frontline.filter(_.product===product).map(x =>
         (x.flrset, x.grade, x.strclimate)
       ).result
-    ).map(list => list.foreach(x => {
-      val elmSet = FRONT_CLIMATE_MAP.getOrElseUpdate(x._1, M.HashSet[FrontlineClimate]())
-      elmSet+=FrontlineClimate(x._2, x._3)
+    )
+    .map(l => l.foldLeft(new M.HashMap[String, M.Set[FrontlineClimate]]())((b,a) => {
+      b.getOrElseUpdate(a._1, M.HashSet[FrontlineClimate]())+=FrontlineClimate(a._2, a._3)
+      b
     }))
 
-    val frontlineExitFuture: Future[Seq[FrontlineExit]] = h2DbExternal.run(
+    val frontlineExitFuture: Future[Set[FrontlineExit]] = h2DbExternal.run(
       frontline.filter(_.product===product).distinct.map(x =>
         (x.exitdate_indx, x.initrcptwk_indx)
       ).result
-    ).map(l => l.map(x => FrontlineExit(Math.min(x._1, v_planend + 1), Math.max(x._2, v_plancurrent))))
+    ).map(l => l.map(x => FrontlineExit(Math.min(x._1, v_planend + 1), Math.max(x._2, v_plancurrent))).toSet)
 
-    val frontlineDbtwkExitFuture: Future[Seq[FrontlineDbtwkExit]] = h2DbExternal.run(
+    val frontlineDbtwkExitFuture: Future[Set[FrontlineDbtwkExit]] = h2DbExternal.run(
       frontline.filter(_.product===product).distinct.map(x =>
         (x.exitdate_indx, x.dbtwk_indx)
       ).result
-    ).map(l => l.map(x => FrontlineDbtwkExit(Math.min(x._1, v_planend + 1), Math.max(x._2, v_plancurrent))))
+    ).map(l => l.map(x => FrontlineDbtwkExit(Math.min(x._1, v_planend + 1), Math.max(x._2, v_plancurrent))).toSet)
 
-    val frontlineWithTimefuture: Future[Seq[FrontlineWithTime]] = h2DbExternal.run(
+    val frontlineWithTimefuture: Future[Set[FrontlineWithTime]] = h2DbExternal.run(
       frontline.filter(_.product===product).distinct.map(x =>
         (x.dbtwk_indx, x.erlstmkdnwk_indx, x.exitdate_indx)
       ).result
-    ).map(l => l.map(x => FrontlineWithTime(x._1, x._2, x._3)))
+    ).map(l => l.map(x => FrontlineWithTime(x._1, x._2, x._3)).toSet)
 
-    val empty = (FRONT_CLIMATE_MAP, Set.empty[FrontlineExit], Set.empty[FrontlineDbtwkExit], Set.empty[FrontlineWithTime])
 
-    val combinedFuture =
-      for {
-        f1 <- frontlineClimateFuture
-        f2 <- frontlineExitFuture
-        f3 <- frontlineDbtwkExitFuture
-        f4 <- frontlineWithTimefuture
-      } yield (f1, f2, f3, f4)
+    for {
+      f1 <- frontlineClimateFuture
+      f2 <- frontlineExitFuture
+      f3 <- frontlineDbtwkExitFuture
+      f4 <- frontlineWithTimefuture
+    } yield (f1, f2, f3, f4)
 
-    Await.result(combinedFuture, DURATION)
-    combinedFuture.value match {
-      case Some(x) => x match {
-        case Success(y) => (FRONT_CLIMATE_MAP, y._2.toSet, y._3.toSet, y._4.toSet)
-        case Failure(e) => logger.error("Can't read frontline table", e); empty
-      }
-      case None => empty
-    }
+  }
+
+  private def readFromDepartment(product: String): Future[Set[String]] = {
+    import slick.jdbc.H2Profile.api._
+    import scala.concurrent.ExecutionContext.Implicits.global
+    h2DbExternal.run(
+      department.filter(_.product===product).map(x => x.department).result
+    ).map((x: Seq[String]) => x.toSet)
+  }
+
+  private def readFromFrontSizes(product: String): Future[Int] = {
+    import slick.jdbc.H2Profile.api._
+    import scala.concurrent.ExecutionContext.Implicits.global
+    h2DbExternal.run(
+      frontSizes.filter(_.product===product).map(_.num_sizes).result
+    ).map(y => y.head)
+  }
+
+  private def readFromClStr(): Future[Set[ClStrKey]] = {
+    import slick.jdbc.H2Profile.api._
+    import scala.concurrent.ExecutionContext.Implicits.global
+    h2DbExternal.run(
+      clStr.map(x => (x.location, x.strclimate)).result.
+        map(z => z.map(y => ClStrKey(y._1, y._2)).toSet)
+    )
   }
 
   private def readFromAttrTime(
     product: String,
     DEPARTMENT_SET: Set[String],
     FRONT_CLIMATE_MAP: M.Map[String, M.Set[FrontlineClimate]]
-  ): M.Map[AmWkKey, M.ArrayBuffer[String]] = {
-
-    val AM_WK_MAP: M.Map[AmWkKey, M.ArrayBuffer[String]] = new M.HashMap[AmWkKey, M.ArrayBuffer[String]]
+  ): Future[M.Map[AmWkKey, M.ArrayBuffer[String]]] = {
 
     import slick.jdbc.H2Profile.api._
-    val attrTimeFuture: Future[Seq[(String, String, Int)]] = h2DbExternal.run(
+    import scala.concurrent.ExecutionContext.Implicits.global
+    h2DbExternal.run(
       attrTime.map(x => (x.flrset, x.department, x.indx)).result
     )
-    Await.result(attrTimeFuture, DURATION)
-
-    val list = attrTimeFuture.value match {
-      case Some(x) => x match {
-        case Success(y) => y
-        case Failure(e) => logger.error("Can't read attrTime table", e); Seq.empty
-      }
-      case None => Seq.empty
-    }
-    list.foreach(x => {
-      if (DEPARTMENT_SET.contains(x._2)) {
-        val flrset: String = x._1
-        FRONT_CLIMATE_MAP.getOrElse(x._1, M.Set[FrontlineClimate]()).foreach(elm => {
-          val strClimateSet = AM_WK_MAP.getOrElseUpdate(AmWkKey(x._3, elm.grade), M.ArrayBuffer[String]())
-          strClimateSet += elm.strClimate
-        })
-      }
-    })
-    AM_WK_MAP
-  }
-
-  private def readFromClStr(): Set[ClStrKey] = {
-
-    import slick.jdbc.H2Profile.api._
-    val clStrFuture: Future[Seq[(String, String)]] = h2DbExternal.run(
-      clStr.map(x => (x.location, x.strclimate)).result
-    )
-    Await.result(clStrFuture, DURATION)
-
-    clStrFuture.value match {
-      case Some(x) => x match {
-        case Success(y) => y.map(z => ClStrKey(z._1, z._2)).toSet
-        case Failure(e) => logger.error("Can't read ClStr table", e); Set.empty
-      }
-      case None => Set.empty
-    }
+    .map(y => y.foldLeft(M.HashMap[AmWkKey, M.ArrayBuffer[String]]())(
+      ( b: M.HashMap[AmWkKey, M.ArrayBuffer[String]], a: (String, String, Int)) => {
+        if (DEPARTMENT_SET.contains(a._2)) {
+          FRONT_CLIMATE_MAP.getOrElse(a._1, M.Set[FrontlineClimate]()).foreach(elm => {
+            b.getOrElseUpdate(AmWkKey(a._3, elm.grade), M.ArrayBuffer[String]()) += elm.strClimate
+          })
+        }
+        b
+    }))
   }
 
   private def readFromStoreLookup(
@@ -151,39 +124,114 @@ object Func {
     DEPARTMENT_SET: Set[String],
     AM_WK_MAP: M.Map[AmWkKey, M.ArrayBuffer[String]],
     FRONTLINE_EXIT_SET: Set[FrontlineExit]
-  ): M.Map[String, M.Set[Int]]  = {
+  ): Future[M.Map[String, M.Set[Int]]]  = {
 
-    val STORE_LIST_MAP: M.Map[String, M.Set[Int]] = M.HashMap[String, M.Set[Int]]()
     val bottom: Int = FRONTLINE_EXIT_SET.head.bottom
     val up: Int = FRONTLINE_EXIT_SET.head.up
 
     import slick.jdbc.H2Profile.api._
+    import scala.concurrent.ExecutionContext.Implicits.global
 
-    val storeLookupFuture: Future[Seq[(Int, String, String, String)]] = h2DbExternal.run(
+    h2DbExternal.run(
       storeLookup.map(x => (x.indx, x.location, x.grade, x.department)).result
     )
-    Await.result(storeLookupFuture, DURATION)
-
-    storeLookupFuture.value match {
-      case Some(x) => x match {
-        case Success(y) => y.foreach(z => {
-          if (DEPARTMENT_SET.contains(z._4)) {
-            val idIndx: Int = z._1
-            if (idIndx >= bottom && idIndx < up) {
-              AM_WK_MAP.getOrElse(AmWkKey(idIndx, z._3), M.ArrayBuffer.empty).foreach(strclimate => {
-                if (CL_STR_SET.contains(ClStrKey(z._2, strclimate))) {
-                  STORE_LIST_MAP.getOrElseUpdate(z._2, M.SortedSet[Int]()) += idIndx
-                }
-              })
-            }
+    .map(y => y.foldLeft(M.HashMap[String, M.Set[Int]]())(
+      ( b: M.HashMap[String, M.Set[Int]], a: (Int, String, String, String)) => {
+        if (DEPARTMENT_SET.contains(a._4)) {
+          val idIndx: Int = a._1
+          if (idIndx >= bottom && idIndx < up) {
+            AM_WK_MAP.getOrElse(AmWkKey(idIndx, a._3), M.ArrayBuffer.empty).foreach(strclimate => {
+              if (CL_STR_SET.contains(ClStrKey(a._2, strclimate))) {
+                b.getOrElseUpdate(a._2, M.SortedSet[Int]()) += idIndx
+              }
+            })
           }
-        })
-        case Failure(e) => logger.error("Can't read attrTime table", e); ()
-      }
-      case None => ()
-    }
-    STORE_LIST_MAP
+        }
+        b
+      })
+    )
   }
+
+  private def readLocBaseFcst(product: String):
+    Future[(M.ArrayBuffer[LocBaseFcstKey], M.Map[Int, M.Map[LocationIndxKey, Int]])] = {
+
+    import slick.jdbc.H2Profile.api._
+    import scala.concurrent.ExecutionContext.Implicits.global
+    val locBaseFcst = locBaseFcstMap(product).locBaseFcst
+
+    h2DbExternal.run(
+      locBaseFcst.map(x => (x.indx, x.location, x.fcst)).result
+    )
+    .map(y => y.foldLeft(M.ArrayBuffer[LocBaseFcstKey](), M.SortedMap[Int, M.Map[LocationIndxKey, Int]]())(
+      ( b: (M.ArrayBuffer[LocBaseFcstKey], M.SortedMap[Int, M.Map[LocationIndxKey, Int]]), a: (Int, String, Int)) => {
+        val key = LocationIndxKey(LocationKey(a._2), a._1)
+        b._1+=LocBaseFcstKey(key, a._3)
+        b._2.getOrElseUpdate(a._1, M.HashMap[LocationIndxKey, Int]()).put(key, a._3)
+        b
+      })
+    )
+  }
+
+  private def readFromEoh(product: String): Future[M.Map[LocationKey, Int]] = {
+    import slick.jdbc.H2Profile.api._
+    import scala.concurrent.ExecutionContext.Implicits.global
+    h2DbExternal.run(
+      eoh.filter(_.product===product).map(x => (x.location, x.eoh)).result
+    )
+      .map(y => y.foldLeft(M.HashMap[LocationKey, Int]())(
+        ( b: M.HashMap[LocationKey, Int], a: (String, Int)) => {
+          b.put(LocationKey(a._1), a._2)
+          b
+        })
+      )
+  }
+
+  private def readFromVrpTest():
+  (Int, Int, M.Map[IndxKey, VrpTestSource], M.Map[SbktKey, M.Set[IndxKey]], M.Map[IndxKey, SbktKey]) = {
+    val VRP_TEST_SOURCE_MAP: M.Map[IndxKey, VrpTestSource] = M.HashMap[IndxKey, VrpTestSource]()
+    val SBKT_MAP: M.Map[SbktKey, M.Set[IndxKey]] = M.SortedMap[SbktKey, M.Set[IndxKey]]()
+    val MIN_SBKT_BY_INDEX: M.Map[IndxKey, SbktKey] = M.SortedMap[IndxKey, SbktKey]()
+
+    val FRST_SBKT_FINAL_VRP_SET: M.Set[IndxKey] = M.SortedSet[IndxKey]()
+
+    import slick.jdbc.H2Profile.api._
+    val vrpTestFuture: Future[Seq[(Int,Option[Int],Int, Int, Int)]] = h2DbExternal.run(
+      vrpTest.map(x => (x.indx, x.cons, x.final_qty, x.final_vrp, x.sbkt)).result
+    )
+    Await.result(vrpTestFuture, DURATION)
+
+    vrpTestFuture.value match {
+      case Some(x) => x match {
+        case Success(y) => y.foreach(x => {
+          val indxKey: IndxKey = IndxKey(x._1)
+
+          val sbktKey: SbktKey = SbktKey(x._5)
+
+          val cons: Int = x._2.getOrElse(0)
+
+          val vrpTestSource: VrpTestSource = VrpTestSource(cons, x._3, x._4)
+
+          VRP_TEST_SOURCE_MAP.put(indxKey, vrpTestSource)
+          SBKT_MAP.getOrElseUpdate(sbktKey, M.SortedSet[IndxKey]())+=indxKey
+
+          val dcSbkt: SbktKey = MIN_SBKT_BY_INDEX.getOrElseUpdate(indxKey, SbktKey(Integer.MAX_VALUE))
+          if (dcSbkt.sbkt > sbktKey.sbkt) MIN_SBKT_BY_INDEX.put(indxKey, sbktKey)
+
+          if (vrpTestSource.finalVrp > 0) FRST_SBKT_FINAL_VRP_SET+=indxKey
+
+        })
+        case Failure(e) => logger.error("Can't read bod table", e);
+      }
+    }
+
+    val frstSbktFinalVrp: Int = FRST_SBKT_FINAL_VRP_SET.head.indx
+    FRST_SBKT_FINAL_VRP_SET.clear()
+
+    val vFrstSbkt: Int = SBKT_MAP.getOrElse(SBKT_MAP.keySet.head, M.Set.empty).head.indx
+    (frstSbktFinalVrp, vFrstSbkt, VRP_TEST_SOURCE_MAP, SBKT_MAP, MIN_SBKT_BY_INDEX)
+  }
+
+
 
   private def createStoreLyfecyle(
     MIN_INDEX_BY_LOCATION: M.Map[String, Int],
@@ -232,53 +280,7 @@ object Func {
     STORE_AND_LIFECYLE_MAP
   }
 
-  private def readFromFrontSizes(product: String): Int = {
-    import slick.jdbc.H2Profile.api._
 
-    val numSizesFuture: Future[Seq[Int]] = h2DbExternal.run(
-      frontSizes.filter(_.product===product).map(_.num_sizes).result
-    )
-    Await.result(numSizesFuture, DURATION)
-
-    numSizesFuture.value match {
-      case Some(x) => x match {
-        case Success(y) => y.head
-        case Failure(e) => logger.error("Can't read numSizes table", e); 0
-      }
-      case None => 0
-    }
-
-  }
-
-  private def readLocBaseFcst(product: String):
-  (M.ArrayBuffer[LocBaseFcstKey], M.Map[Int, M.Map[LocationIndxKey, Int]]) = {
-    val LOC_BASE_FCST: M.ArrayBuffer[LocBaseFcstKey] = M.ArrayBuffer[LocBaseFcstKey]()
-    val LOC_BASE_FCST_LIST_BY_INDX: M.Map[Int, M.Map[LocationIndxKey, Int]] = M.SortedMap[Int, M.Map[LocationIndxKey, Int]]()
-
-    import slick.jdbc.H2Profile.api._
-    val locBaseFcst = locBaseFcstMap.get(product).get.locBaseFcst
-
-    val locBaseFcstFuture: Future[Seq[(Int, String, Int)]] = h2DbExternal.run(
-      locBaseFcst.map(x => (x.indx, x.location, x.fcst)).result
-    )
-    Await.result(locBaseFcstFuture, DURATION)
-
-    locBaseFcstFuture.value match {
-      case Some(x) => x match {
-        case Success(y) => y.foreach( elm => {
-          val key = LocationIndxKey(LocationKey(elm._2), elm._1)
-
-          LOC_BASE_FCST+=LocBaseFcstKey(key, elm._3)
-          val locBaseFcst: M.Map[LocationIndxKey, Int] = LOC_BASE_FCST_LIST_BY_INDX.getOrElseUpdate(elm._1, M.HashMap[LocationIndxKey, Int]())
-          locBaseFcst.put(key, elm._3)
-
-        })
-        case Failure(e) => logger.error("Can't read locBaseFcst table", e);
-      }
-      case None => Unit
-    }
-    (LOC_BASE_FCST, LOC_BASE_FCST_LIST_BY_INDX)
-  }
 
   private def createTohInput(
     STORE_AND_LIFECYLE_MAP: M.Map[LocationIndxKey, TohInput],
@@ -398,9 +400,9 @@ object Func {
   def createTohInputFinal(
     TOH_INPUT: M.Map[LocationIndxKey, TohInput],
     UPDATE_TOH_MAP: M.Map[LocationKey, M.Map[IndxKey, Int]],
-    REC_LOCATION_EXT: M.Map[LocationKey, M.Map[IndxKey, Int]],
-    LOCATION_SET: M.Set[LocationKey]
-  ): Unit = {
+    REC_LOCATION_EXT: M.Map[LocationKey, M.Map[IndxKey, Int]]
+  ): M.Set[LocationKey] = {
+    val LOCATION_SET: M.Set[LocationKey] = M.HashSet[LocationKey]()
     val V_TOH_MOD: M.Map[LocationIndxKey, Int] = M.HashMap[LocationIndxKey, Int]()
 
     UPDATE_TOH_MAP.foreach(updateTohEntry => {
@@ -418,7 +420,7 @@ object Func {
             if (upperBoundIndex >= 0) {
               for (i <- 0 to upperBoundIndex) {
                 val recLocationIndxKey: IndxKey = recLocationExtIndxArr(i)
-                val recLocationMaxValue: Int = recLocationExtValue.get(recLocationIndxKey).get
+                val recLocationMaxValue: Int = recLocationExtValue(recLocationIndxKey)
                 if (recLocationMaxValue > updateTohIndex.indx) {
                   val aggKey: LocationIndxKey = LocationIndxKey(loc, recLocationIndxKey.indx)
                   var curSum: Int = V_TOH_MOD.getOrElse(aggKey, 0)
@@ -432,15 +434,14 @@ object Func {
         case None =>
       }
     })
-    for (entry <- TOH_INPUT) {
-      val key: LocationIndxKey = entry._1
-      val tohInput: TohInput = entry._2
-      V_TOH_MOD.get(key) match {
-        case Some(tohValue) => tohInput.toh = tohValue
+    TOH_INPUT.foreach(entry => {
+      V_TOH_MOD.get(entry._1) match {
+        case Some(tohValue) => entry._2.toh = tohValue
         case None =>
       }
-      LOCATION_SET.add(key.location)
-    }
+      LOCATION_SET.add(entry._1.location)
+    })
+    LOCATION_SET
   }
 
   private def readFromBod(
@@ -470,70 +471,6 @@ object Func {
     }
 
     V_LT_MAP
-  }
-
-  private def readFromVrpTest():
-  (Int, Int, M.Map[IndxKey, VrpTestSource], M.Map[SbktKey, M.Set[IndxKey]], M.Map[IndxKey, SbktKey]) = {
-    val VRP_TEST_SOURCE_MAP: M.Map[IndxKey, VrpTestSource] = M.HashMap[IndxKey, VrpTestSource]()
-    val SBKT_MAP: M.Map[SbktKey, M.Set[IndxKey]] = M.SortedMap[SbktKey, M.Set[IndxKey]]()
-    val MIN_SBKT_BY_INDEX: M.Map[IndxKey, SbktKey] = M.SortedMap[IndxKey, SbktKey]()
-
-    val FRST_SBKT_FINAL_VRP_SET: M.Set[IndxKey] = M.SortedSet[IndxKey]()
-
-    import slick.jdbc.H2Profile.api._
-    val vrpTestFuture: Future[Seq[(Int,Option[Int],Int, Int, Int)]] = h2DbExternal.run(
-      vrpTest.map(x => (x.indx, x.cons, x.final_qty, x.final_vrp, x.sbkt)).result
-    )
-    Await.result(vrpTestFuture, DURATION)
-
-    vrpTestFuture.value match {
-      case Some(x) => x match {
-        case Success(y) => y.foreach(x => {
-          val indxKey: IndxKey = IndxKey(x._1)
-
-          val sbktKey: SbktKey = SbktKey(x._5)
-
-          val cons: Int = x._2.getOrElse(0)
-
-          val vrpTestSource: VrpTestSource = VrpTestSource(cons, x._3, x._4)
-
-          VRP_TEST_SOURCE_MAP.put(indxKey, vrpTestSource)
-          SBKT_MAP.getOrElseUpdate(sbktKey, M.SortedSet[IndxKey]())+=indxKey
-
-          val dcSbkt: SbktKey = MIN_SBKT_BY_INDEX.getOrElseUpdate(indxKey, SbktKey(Integer.MAX_VALUE))
-          if (dcSbkt.sbkt > sbktKey.sbkt) MIN_SBKT_BY_INDEX.put(indxKey, sbktKey)
-
-          if (vrpTestSource.finalVrp > 0) FRST_SBKT_FINAL_VRP_SET+=indxKey
-
-        })
-        case Failure(e) => logger.error("Can't read bod table", e);
-      }
-    }
-
-    val frstSbktFinalVrp: Int = FRST_SBKT_FINAL_VRP_SET.head.indx
-    FRST_SBKT_FINAL_VRP_SET.clear()
-    val indxKeySet: M.Set[IndxKey] = SBKT_MAP.getOrElse(SBKT_MAP.keySet.head, M.Set.empty)
-    val vFrstSbkt: Int = indxKeySet.head.indx
-    (frstSbktFinalVrp, vFrstSbkt, VRP_TEST_SOURCE_MAP, SBKT_MAP, MIN_SBKT_BY_INDEX)
-  }
-
-  private def readFromEoh(product: String): M.Map[LocationKey, Int] = {
-    val EOH_BY_PRODUCT: M.Map[LocationKey, Int] = M.HashMap[LocationKey, Int]()
-    import slick.jdbc.H2Profile.api._
-    val eohFuture: Future[Seq[(String, Int)]] = h2DbExternal.run(
-      eoh.filter(_.product===product).map(x => (x.location, x.eoh)).result
-    )
-    Await.result(eohFuture, DURATION)
-
-    eohFuture.value match {
-      case Some(x) => x match {
-        case Success(y) => y.foreach(x => {
-          EOH_BY_PRODUCT.put(LocationKey(x._1), x._2)
-        })
-        case Failure(e) => logger.error("Can't read eoh table", e);
-      }
-    }
-    EOH_BY_PRODUCT
   }
 
   private def fillRcptMap(
@@ -627,7 +564,7 @@ object Func {
       val indxKey: IndxKey = IndxKey(t)
       val prevIndxKey: IndxKey = IndxKey(t - 1)
       val VRP_TEST: VrpTestSource = VRP_TEST_SOURCE_MAP.getOrElse(indxKey, VrpTestSource.Default)
-      val sbktKey: SbktKey = MIN_SBKT_BY_INDEX.get(indxKey).get
+      val sbktKey: SbktKey = MIN_SBKT_BY_INDEX(indxKey)
       val rcptList: M.ArrayBuffer[Rcpt] = RCPT_MAP_BY_INDX.getOrElse(indxKey, M.ArrayBuffer[Rcpt]())
 
       var RCPT_CUR_Agg_Unc_Need_DC: Int = 0
@@ -780,7 +717,7 @@ object Func {
         sum += dc.dcRaw
       }
       DC_MAP_BY_SBKT.remove(v_sbkt_id)
-      val dcSource: Dc = DC_MAP.get(IndxKey(v_sbkt_start)).get
+      val dcSource: Dc = DC_MAP(IndxKey(v_sbkt_start))
       dcSource.dcRcpt=sum
 
       for (indxKey <- INDX_SET) {
@@ -854,49 +791,88 @@ object Func {
     val rs: SimpleResultSet = createOutputResultSet
     if (conn.getMetaData.getURL == "jdbc:columnlist:connection") rs else {
       try {
+        import scala.concurrent.ExecutionContext.Implicits.global
         var start: Long = System.currentTimeMillis
         val globalStart: Long = start
-        val t = readFrontline(product, v_plancurrent, v_planend)
-        var end: Long = System.currentTimeMillis
-        logger.info("readFrontline() " + (end - start))
+        var end = 0L
 
-        val FRONT_CLIMATE_MAP = t._1
-        val FRONTLINE_EXIT_SET = t._2
-        val FRONTLINE_DBTWK_EXIT_SET = t._3
-        val FRONTLINE_WITH_TIME = t._4
-        logger.info("FRONT_CLIMATE_MAP size: " + FRONT_CLIMATE_MAP.size)
-        logger.info("FRONTLINE_EXIT_SET size: " + FRONTLINE_EXIT_SET.size)
-        logger.info("FRONTLINE_WITH_TIME size: " + FRONTLINE_WITH_TIME.size)
-        logger.info("FRONTLINE_DBTWK_EXIT_SET size: " + FRONTLINE_DBTWK_EXIT_SET.size)
+        val frontlineFuture: Future[(M.Map[String, M.Set[FrontlineClimate]], Set[FrontlineExit], Set[FrontlineDbtwkExit], Set[FrontlineWithTime])]
+          = readFrontline(product, v_plancurrent, v_planend)
 
-        start = end
-        val numSizes: Int = readFromFrontSizes(product)
-        end = System.currentTimeMillis
-        logger.info("readFromFrontSizes() " + (end - start))
+        val departmentSetFuture: Future[Set[String]] = readFromDepartment(product)
 
-        start = end
-        val DEPARTMENT_SET: Set[String] = readFromDepartment(product)
-        end = System.currentTimeMillis
-        logger.info("readFromDepartment() " + (end - start))
-        logger.info("DEPARTMENT_SET size: " + DEPARTMENT_SET.size)
 
-        start = end
-        val CL_STR_SET: Set[ClStrKey] = readFromClStr()
-        end = System.currentTimeMillis
-        logger.info("readFromClStr() " + (end - start))
+
+        val combineFuture = for(
+          cs <- readFromClStr();
+          ds <- readFromDepartment(product);
+          ns <- readFromFrontSizes(product);
+          locBase <- readLocBaseFcst(product);
+          eoh <- readFromEoh(product);
+          t <- readFrontline(product, v_plancurrent, v_planend);
+          amWk <- readFromAttrTime(product, ds, t._1);
+          stLookup <- readFromStoreLookup(product, cs, ds, amWk, t._2)
+        ) yield (t, ds, ns, cs, amWk, stLookup, locBase, eoh)
+
+        Await.result(combineFuture, DURATION)
+
+        val res: (
+          (M.Map[String, M.Set[FrontlineClimate]], Set[FrontlineExit], Set[FrontlineDbtwkExit], Set[FrontlineWithTime]),
+          Set[String],
+          Int,
+          Set[ClStrKey],
+          M.Map[AmWkKey, M.ArrayBuffer[String]],
+          M.Map[String, M.Set[Int]],
+          (M.ArrayBuffer[LocBaseFcstKey], M.Map[Int, M.Map[LocationIndxKey, Int]]),
+          M.Map[LocationKey, Int]
+          ) = combineFuture.value match {
+          case Some(x) => x match {
+            case Success(y) => y
+            case Failure(e) => logger.error("Can't read source tables", e); throw e
+          }
+          case None => throw new IllegalStateException()
+        }
+
+
+        val FRONT_CLIMATE_MAP = res._1._1
+        val FRONTLINE_EXIT_SET = res._1._2
+        val FRONTLINE_DBTWK_EXIT_SET = res._1._3
+        val FRONTLINE_WITH_TIME = res._1._4
+
+        val DEPARTMENT_SET = res._2
+        logger.info(s"DEPARTMENT_SET size: ${DEPARTMENT_SET.size}")
+
+        val numSizes = res._3
+        logger.info(s"numSizes value: $numSizes")
+
+        val CL_STR_SET: Set[ClStrKey] = res._4
         logger.info("CL_STR_SET size: " + CL_STR_SET.size)
 
-        start = end
-        val AM_WK_MAP: M.Map[AmWkKey, M.ArrayBuffer[String]] = readFromAttrTime(product, DEPARTMENT_SET, FRONT_CLIMATE_MAP)
-        end = System.currentTimeMillis
-        logger.info("readFromAttrTime() " + (end - start))
+        val AM_WK_MAP: M.Map[AmWkKey, M.ArrayBuffer[String]] = res._5
         logger.info("AM_WK_MAP size: " + AM_WK_MAP.size)
 
-        start = end
-        val STORE_LIST_MAP: M.Map[String, M.Set[Int]] = readFromStoreLookup(product, CL_STR_SET, DEPARTMENT_SET, AM_WK_MAP, FRONTLINE_EXIT_SET)
-        end = System.currentTimeMillis
-        logger.info("readFromStoreLookup() " + (end - start))
+        val STORE_LIST_MAP: M.Map[String, M.Set[Int]] = res._6
         logger.info("STORE_LIST_MAP size: " + STORE_LIST_MAP.size)
+
+        val LOC_BASE_FCST = res._7._1
+        logger.info("LOC_BASE_FCST size: " + LOC_BASE_FCST.size)
+        val LOC_BASE_FCST_LIST_BY_INDX = res._7._2
+        logger.info("LOC_BASE_FCST_LIST_BY_INDX size: " + LOC_BASE_FCST_LIST_BY_INDX.size)
+
+        val EOH_BY_PRODUCT: M.Map[LocationKey, Int] = res._8
+        logger.info("EOH_BY_PRODUCT size: " + EOH_BY_PRODUCT.size)
+
+        val vrpTestRes = readFromVrpTest()
+        val frstSbktFinalVrp: Int = vrpTestRes._1
+        val vFrstSbkt: Int = vrpTestRes._2
+        val VRP_TEST_SOURCE_MAP = vrpTestRes._3
+        val SBKT_MAP = vrpTestRes._4
+        val MIN_SBKT_BY_INDEX = vrpTestRes._5
+        end = System.currentTimeMillis
+        logger.info("readFromVrpTest() " + (end - start))
+        logger.info("vFrstSbkt: " + vFrstSbkt)
+        logger.info("frstSbktFinalVrp: " + frstSbktFinalVrp)
+        logger.info("VRP_TEST size: " + VRP_TEST_SOURCE_MAP.size)
 
         start = end
         val MIN_INDEX_BY_LOCATION: M.Map[String, Int] = M.HashMap[String, Int]()
@@ -917,13 +893,7 @@ object Func {
         logger.info("joinStoreAndLifecyle() " + (end - start))
         logger.info("STORE_AND_LIFECYLE_MAP size: " + STORE_AND_LIFECYLE_MAP.size)
 
-        val t1 = readLocBaseFcst(product)
-        val LOC_BASE_FCST = t1._1
-        val LOC_BASE_FCST_LIST_BY_INDX = t1._2
-        end = System.currentTimeMillis
-        logger.info("readLocBaseFcst() " + (end - start))
-        logger.info("LOC_BASE_FCST size: " + LOC_BASE_FCST.size)
-        logger.info("LOC_BASE_FCST_LIST_BY_INDX size: " + LOC_BASE_FCST_LIST_BY_INDX.size)
+
 
         start = end
         val TOH_INPUT: M.Map[LocationIndxKey, TohInput] = M.HashMap[LocationIndxKey, TohInput]()
@@ -946,8 +916,7 @@ object Func {
         logger.info("REC_LOCATION_EXT size: " + REC_LOCATION_EXT.size)
 
         start = end
-        val LOCATION_SET: M.Set[LocationKey] = M.HashSet[LocationKey]()
-        createTohInputFinal(TOH_INPUT, UPDATE_TOH_INPUT, REC_LOCATION_EXT, LOCATION_SET)
+        val LOCATION_SET: M.Set[LocationKey] =createTohInputFinal(TOH_INPUT, UPDATE_TOH_INPUT, REC_LOCATION_EXT)
         end = System.currentTimeMillis
         logger.info("createTohInputFinal() " + (end - start))
 
@@ -955,25 +924,6 @@ object Func {
         val V_LT: M.Map[LocationKey, Int] = readFromBod(DEPARTMENT_SET, LOCATION_SET)
         end = System.currentTimeMillis
         logger.info("readFromBod() " + (end - start))
-        start = end
-
-        val vrpTestRes = readFromVrpTest()
-        val frstSbktFinalVrp: Int = vrpTestRes._1
-        val vFrstSbkt: Int = vrpTestRes._2
-        val VRP_TEST_SOURCE_MAP = vrpTestRes._3
-        val SBKT_MAP = vrpTestRes._4
-        val MIN_SBKT_BY_INDEX = vrpTestRes._5
-        end = System.currentTimeMillis
-        logger.info("readFromVrpTest() " + (end - start))
-        logger.info("vFrstSbkt: " + vFrstSbkt)
-        logger.info("frstSbktFinalVrp: " + frstSbktFinalVrp)
-        logger.info("VRP_TEST size: " + VRP_TEST_SOURCE_MAP.size)
-
-        start = end
-        val EOH_BY_PRODUCT: M.Map[LocationKey, Int] = readFromEoh(product)
-        end = System.currentTimeMillis
-        logger.info("readFromEoh() " + (end - start))
-        logger.info("EOH_BY_PRODUCT size: " + EOH_BY_PRODUCT.size)
 
         start = end
         val t2 = fillRcptMap(v_plancurrent, v_planend, LOCATION_SET, V_LT, EOH_BY_PRODUCT, TOH_INPUT)
