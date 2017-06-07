@@ -7,7 +7,7 @@ object EntryPoint extends App{
 
   import com.yahoo.sdvornik.db_scala.H2DbHelper
 
-  val product = "10127-001"  //"10127-001" //"10127-410"
+  val product = "10127-410"  //"10127-001" //"10127-410"
   val helper = new H2DbHelper(product)
 
   val server = helper.getTCPServer

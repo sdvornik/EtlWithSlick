@@ -11,7 +11,9 @@ import scala.util.{Failure, Success, Try}
 
 object H2DbHelper {
   import slick.jdbc.H2Profile.api._
-  val h2Db: Database = Database.forConfig("h2memInstance")
+  val h2DbEmbedded: Database = Database.forConfig("h2memInstance")
+  val h2DbExternal: Database = Database.forConfig("h2extInstance")
+
 
   import com.yahoo.sdvornik.mem_tables._
   val attrTime: TableQuery[AttrTime] = TableQuery[AttrTime]
@@ -106,108 +108,108 @@ class H2DbHelper(product: String) {
     import PostgresDbHelper._
     import scala.concurrent.ExecutionContext.Implicits.global
 
-    val attrTimeInsert = h2Db.run(setup)
+    val attrTimeInsert = h2DbEmbedded.run(setup)
       .flatMap(_ => postgresDb.run(attrTimeQuery))
-      .flatMap(vector  => h2Db.run(DBIO.seq(attrTime ++= vector)))
+      .flatMap(vector  => h2DbEmbedded.run(DBIO.seq(attrTime ++= vector)))
 
     attrTimeInsert.onComplete(x =>
       if (x.isSuccess) log.info("Successfully write to AttrTime MemTable")
       else log.error("Can't write to AttrTime MemTable",x.failed.get)
     )
 
-    val bodInsert = h2Db.run(DBIO.from(attrTimeInsert))
+    val bodInsert = h2DbEmbedded.run(DBIO.from(attrTimeInsert))
       .flatMap(_ => postgresDb.run(bodQuery))
-      .flatMap(vector  => h2Db.run(DBIO.seq(bod ++= vector)))
+      .flatMap(vector  => h2DbEmbedded.run(DBIO.seq(bod ++= vector)))
 
     bodInsert.onComplete(x =>
       if (x.isSuccess) log.info("Successfully write to Bod MemTable")
       else log.error("Can't write to Bod MemTable",x.failed.get)
     )
 
-    val clStrInsert = h2Db.run(DBIO.from(bodInsert))
+    val clStrInsert = h2DbEmbedded.run(DBIO.from(bodInsert))
       .flatMap(_ => postgresDb.run(clStrQuery))
-      .flatMap(vector  => h2Db.run(DBIO.seq(clStr ++= vector)))
+      .flatMap(vector  => h2DbEmbedded.run(DBIO.seq(clStr ++= vector)))
 
     clStrInsert.onComplete(x =>
       if (x.isSuccess) log.info("Successfully write to ClStr MemTable")
       else log.error("Can't write to ClStr MemTable",x.failed.get)
     )
 
-    val dcAdjInsert = h2Db.run(DBIO.from(clStrInsert))
+    val dcAdjInsert = h2DbEmbedded.run(DBIO.from(clStrInsert))
       .flatMap(_ => postgresDb.run(dcAdjQuery))
-      .flatMap(vector  => h2Db.run(DBIO.seq(dcAdj ++= vector)))
+      .flatMap(vector  => h2DbEmbedded.run(DBIO.seq(dcAdj ++= vector)))
 
     dcAdjInsert.onComplete(x =>
       if (x.isSuccess) log.info("Successfully write to DcAdj MemTable")
       else log.error("Can't write to DcAdj MemTable",x.failed.get)
     )
 
-    val departmentInsert = h2Db.run(DBIO.from(dcAdjInsert))
+    val departmentInsert = h2DbEmbedded.run(DBIO.from(dcAdjInsert))
       .flatMap(_ => postgresDb.run(departmentQuery))
-      .flatMap(vector  => h2Db.run(DBIO.seq(department ++= vector)))
+      .flatMap(vector  => h2DbEmbedded.run(DBIO.seq(department ++= vector)))
 
     departmentInsert.onComplete(x =>
       if (x.isSuccess) log.info("Successfully write to Department MemTable")
       else log.error("Can't write to Department MemTable",x.failed.get)
     )
 
-    val eohInsert = h2Db.run(DBIO.from(dcAdjInsert))
+    val eohInsert = h2DbEmbedded.run(DBIO.from(dcAdjInsert))
       .flatMap(_ => postgresDb.run(eohQuery))
-      .flatMap(vector  => h2Db.run(DBIO.seq(eoh ++= vector)))
+      .flatMap(vector  => h2DbEmbedded.run(DBIO.seq(eoh ++= vector)))
 
     eohInsert.onComplete(x =>
       if (x.isSuccess) log.info("Successfully write to Eoh MemTable")
       else log.error("Can't write to Eoh MemTable",x.failed.get)
     )
 
-    val frontlineInsert = h2Db.run(DBIO.from(eohInsert))
+    val frontlineInsert = h2DbEmbedded.run(DBIO.from(eohInsert))
       .flatMap(_ => postgresDb.run(frontlineQuery))
-      .flatMap(vector  => h2Db.run(DBIO.seq(frontline ++= vector)))
+      .flatMap(vector  => h2DbEmbedded.run(DBIO.seq(frontline ++= vector)))
 
     frontlineInsert.onComplete(x =>
       if (x.isSuccess) log.info("Successfully write to Frontline MemTable")
       else log.error("Can't write to Frontline MemTable",x.failed.get)
     )
 
-    val invModelInsert = h2Db.run(DBIO.from(frontlineInsert))
+    val invModelInsert = h2DbEmbedded.run(DBIO.from(frontlineInsert))
       .flatMap(_ => postgresDb.run(invModelQuery))
-      .flatMap(vector  => h2Db.run(DBIO.seq(invModel ++= vector)))
+      .flatMap(vector  => h2DbEmbedded.run(DBIO.seq(invModel ++= vector)))
 
     invModelInsert.onComplete(x =>
       if (x.isSuccess) log.info("Successfully write to InvModel MemTable")
       else log.error("Can't write to InvModel MemTable",x.failed.get)
     )
 
-    val storeLookupInsert = h2Db.run(DBIO.from(invModelInsert))
+    val storeLookupInsert = h2DbEmbedded.run(DBIO.from(invModelInsert))
       .flatMap(_ => postgresDb.run(storeLookupQuery))
-      .flatMap(vector  => h2Db.run(DBIO.seq(storeLookup ++= vector)))
+      .flatMap(vector  => h2DbEmbedded.run(DBIO.seq(storeLookup ++= vector)))
 
     storeLookupInsert.onComplete(x =>
       if (x.isSuccess) log.info("Successfully write to StoreLookup MemTable")
       else log.error("Can't write to StoreLookup MemTable",x.failed.get)
     )
 
-    val timeIndxInsert = h2Db.run(DBIO.from(storeLookupInsert))
+    val timeIndxInsert = h2DbEmbedded.run(DBIO.from(storeLookupInsert))
       .flatMap(_ => postgresDb.run(timeIndxQuery))
-      .flatMap(vector  => h2Db.run(DBIO.seq(timeIndx ++= vector)))
+      .flatMap(vector  => h2DbEmbedded.run(DBIO.seq(timeIndx ++= vector)))
 
     timeIndxInsert.onComplete(x =>
       if (x.isSuccess) log.info("Successfully write to TimeIndx MemTable")
       else log.error("Can't write to TimeIndx MemTable",x.failed.get)
     )
 
-    val vRcptIntInsert = h2Db.run(DBIO.from(timeIndxInsert))
+    val vRcptIntInsert = h2DbEmbedded.run(DBIO.from(timeIndxInsert))
       .flatMap(_ => postgresDb.run(vRcptIntQuery))
-      .flatMap(vector  => h2Db.run(DBIO.seq(vRcptInt ++= vector)))
+      .flatMap(vector  => h2DbEmbedded.run(DBIO.seq(vRcptInt ++= vector)))
 
     vRcptIntInsert.onComplete(x =>
       if (x.isSuccess) log.info("Successfully write to vRcptInt MemTable")
       else log.error("Can't write to vRcptInt MemTable",x.failed.get)
     )
 
-    val frontSizesInsert: Future[Unit] = h2Db.run(DBIO.from(vRcptIntInsert))
+    val frontSizesInsert: Future[Unit] = h2DbEmbedded.run(DBIO.from(vRcptIntInsert))
       .flatMap(_ => postgresDb.run(frontSizesQuery))
-      .flatMap(vector  => h2Db.run(DBIO.seq(frontSizes ++= vector)))
+      .flatMap(vector  => h2DbEmbedded.run(DBIO.seq(frontSizes ++= vector)))
 
     frontSizesInsert.onComplete(x =>
       if (x.isSuccess) log.info("Successfully write to FrontSizes MemTable")
@@ -227,17 +229,17 @@ class H2DbHelper(product: String) {
     import PostgresDbHelper._
     import scala.concurrent.ExecutionContext.Implicits.global
 
-    val locBaseFcstInsert = h2Db.run(DBIO.from(lastStep))
-      .flatMap(_ => h2Db.run(setup) )
+    val locBaseFcstInsert = h2DbEmbedded.run(DBIO.from(lastStep))
+      .flatMap(_ => h2DbEmbedded.run(setup) )
       .flatMap(_ => postgresDb.run(productQuery(product)))
-      .flatMap(vector  => h2Db.run(DBIO.seq(tempProductTable.locBaseFcst ++= vector)))
+      .flatMap(vector  => h2DbEmbedded.run(DBIO.seq(tempProductTable.locBaseFcst ++= vector)))
     locBaseFcstInsert.onComplete(x =>
       if (x.isSuccess) log.info("Successfully write to locBaseFcst MemTable")
       else log.error("Can't write to locBaseFcst MemTable",x.failed.get)
     )
 
-    val argsInsert: Future[Unit] = h2Db.run(DBIO.from(locBaseFcstInsert))
-      .flatMap(vector  => h2Db.run(DBIO.seq(args += (product, v_plancurrent, v_planend))))
+    val argsInsert: Future[Unit] = h2DbEmbedded.run(DBIO.from(locBaseFcstInsert))
+      .flatMap(vector  => h2DbEmbedded.run(DBIO.seq(args += (product, v_plancurrent, v_planend))))
     argsInsert.onComplete(x =>
       if (x.isSuccess) log.info("Successfully write to Args MemTable")
       else log.error("Can't write to Args MemTable",x.failed.get)
@@ -263,7 +265,7 @@ class H2DbHelper(product: String) {
       (b: Future[Unit], a: SqlAction[Int, NoStream, Effect]) => {
 
           b.flatMap(_=> Future {System.currentTimeMillis()}).flatMap((start: Long) => {
-          val endFuture: Future[Int] = h2Db.run(a)
+          val endFuture: Future[Int] = h2DbEmbedded.run(a)
           val sql = a.statements.head.trim()
           endFuture.onComplete(
             (r: Try[Int]) => r match {
@@ -300,7 +302,7 @@ class H2DbHelper(product: String) {
       (b: Future[Unit], a: SqlAction[Int, NoStream, Effect]) => {
 
         b.flatMap(_=> Future {System.currentTimeMillis()}).flatMap((start: Long) => {
-          val endFuture: Future[Int] = h2Db.run(a)
+          val endFuture: Future[Int] = h2DbEmbedded.run(a)
           val sql = a.statements.head.trim()
           endFuture.onComplete(
             (r: Try[Int]) => r match {

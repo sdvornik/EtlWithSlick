@@ -1,13 +1,12 @@
 package com.yahoo.sdvornik.db_scala
 
-import java.sql.{Connection, ResultSet, SQLException, Statement, Types}
+import java.sql.{Connection, ResultSet, SQLException, Types}
 import java.util.concurrent.TimeUnit
 
 import scala.collection.{mutable => M}
 import com.typesafe.scalalogging.Logger
 import com.yahoo.sdvornik.db_scala.Tuples._
 import com.yahoo.sdvornik.mem_tables.FieldName
-import com.yahoo.sdvornik.mem_tables.TableName
 import com.yahoo.sdvornik.util.IndexSearcher
 import org.h2.tools.SimpleResultSet
 import com.yahoo.sdvornik.db_scala.H2DbHelper._
@@ -15,7 +14,7 @@ import com.yahoo.sdvornik.mem_tables._
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 
 object Func {
@@ -28,34 +27,9 @@ object Func {
 
   private val DURATION: Duration = Duration(5000, TimeUnit.MILLISECONDS)
 
-  private val PRODUCT: String = "\"" + FieldName.PRODUCT + "\""
-  private val DEPARTMENT: String = "\"" + FieldName.DEPARTMENT + "\""
-  private val INDX: String = "\"" + FieldName.INDX + "\""
-  private val LOCATION: String = "\"" + FieldName.LOCATION + "\""
-  private val FLRSET: String = "\"" + FieldName.FLRSET + "\""
-  private val GRADE: String = "\"" + FieldName.GRADE + "\""
-  private val STRCLIMATE: String = "\"" + FieldName.STRCLIMATE + "\""
-  private val DBTWK_INDX: String = "\"" + FieldName.DBTWK_INDX + "\""
-  private val ERLSTMKDNWK_INDX: String = "\"" + FieldName.ERLSTMKDNWK_INDX + "\""
-  private val INITRCPTWK_INDX: String = "\"" + FieldName.INITRCPTWK_INDX + "\""
-  private val EXITDATE_INDX: String = "\"" + FieldName.EXITDATE_INDX + "\""
-  private val NUM_SIZES: String = "\"" + FieldName.NUM_SIZES + "\""
-  private val FCST: String = "\"" + FieldName.FCST + "\""
-  private val TOO: String = "\"" + FieldName.TOO + "\""
-  private val APS: String = "\"" + FieldName.APS + "\""
-  private val APS_LOWER: String = "\"" + FieldName.APS_LOWER + "\""
-  private val WOC: String = "\"" + FieldName.WOC + "\""
-  private val EOH: String = "\"" + FieldName.EOH + "\""
-  private val BOD: String = "\"" + FieldName.BOD + "\""
-  private val CONS: String = "\"" + FieldName.CONS + "\""
-  private val FINAL_QTY: String = "\"" + FieldName.FINAL_QTY + "\""
-  private val FINAL_VRP: String = "\"" + FieldName.FINAL_VRP + "\""
-  private val SBKT: String = "\"" + FieldName.SBKT + "\""
-
-
-  private def readFromDepartment(conn: Connection, product: String): Set[String] = {
+  private def readFromDepartment(product: String): Set[String] = {
     import slick.jdbc.H2Profile.api._
-    val future: Future[Seq[String]] = h2Db.run(department.filter(_.product===product).map(x => x.department).result)
+    val future: Future[Seq[String]] = h2DbExternal.run(department.filter(_.product===product).map(x => x.department).result)
     Await.result(future, DURATION)
     val list: Seq[String] = future.value match {
       case Some(x) => x match {
@@ -67,14 +41,14 @@ object Func {
     list.toSet[String]
   }
 
-  private def readFrontline(conn: Connection, product: String, v_plancurrent: Int, v_planend: Int):
+  private def readFrontline(product: String, v_plancurrent: Int, v_planend: Int):
   (M.Map[String, M.Set[FrontlineClimate]], Set[FrontlineExit], Set[FrontlineDbtwkExit], Set[FrontlineWithTime]) = {
 
     val FRONT_CLIMATE_MAP: M.Map[String, M.Set[FrontlineClimate]] = new M.HashMap()
     import scala.concurrent.ExecutionContext.Implicits.global
     import slick.jdbc.H2Profile.api._
 
-    val frontlineClimateFuture: Future[Unit] = h2Db.run(
+    val frontlineClimateFuture: Future[Unit] = h2DbExternal.run(
       frontline.filter(_.product===product).map(x =>
         (x.flrset, x.grade, x.strclimate)
       ).result
@@ -83,19 +57,19 @@ object Func {
       elmSet+=FrontlineClimate(x._2, x._3)
     }))
 
-    val frontlineExitFuture: Future[Seq[FrontlineExit]] = h2Db.run(
+    val frontlineExitFuture: Future[Seq[FrontlineExit]] = h2DbExternal.run(
       frontline.filter(_.product===product).distinct.map(x =>
         (x.exitdate_indx, x.initrcptwk_indx)
       ).result
     ).map(l => l.map(x => FrontlineExit(Math.min(x._1, v_planend + 1), Math.max(x._2, v_plancurrent))))
 
-    val frontlineDbtwkExitFuture: Future[Seq[FrontlineDbtwkExit]] = h2Db.run(
+    val frontlineDbtwkExitFuture: Future[Seq[FrontlineDbtwkExit]] = h2DbExternal.run(
       frontline.filter(_.product===product).distinct.map(x =>
         (x.exitdate_indx, x.dbtwk_indx)
       ).result
     ).map(l => l.map(x => FrontlineDbtwkExit(Math.min(x._1, v_planend + 1), Math.max(x._2, v_plancurrent))))
 
-    val frontlineWithTimefuture: Future[Seq[FrontlineWithTime]] = h2Db.run(
+    val frontlineWithTimefuture: Future[Seq[FrontlineWithTime]] = h2DbExternal.run(
       frontline.filter(_.product===product).distinct.map(x =>
         (x.dbtwk_indx, x.erlstmkdnwk_indx, x.exitdate_indx)
       ).result
@@ -119,11 +93,9 @@ object Func {
       }
       case None => empty
     }
-
   }
 
   private def readFromAttrTime(
-    conn: Connection,
     product: String,
     DEPARTMENT_SET: Set[String],
     FRONT_CLIMATE_MAP: M.Map[String, M.Set[FrontlineClimate]]
@@ -132,7 +104,7 @@ object Func {
     val AM_WK_MAP: M.Map[AmWkKey, M.ArrayBuffer[String]] = new M.HashMap[AmWkKey, M.ArrayBuffer[String]]
 
     import slick.jdbc.H2Profile.api._
-    val attrTimeFuture: Future[Seq[(String, String, Int)]] = h2Db.run(
+    val attrTimeFuture: Future[Seq[(String, String, Int)]] = h2DbExternal.run(
       attrTime.map(x => (x.flrset, x.department, x.indx)).result
     )
     Await.result(attrTimeFuture, DURATION)
@@ -156,10 +128,10 @@ object Func {
     AM_WK_MAP
   }
 
-  private def readFromClStr(conn: Connection): Set[ClStrKey] = {
+  private def readFromClStr(): Set[ClStrKey] = {
 
     import slick.jdbc.H2Profile.api._
-    val clStrFuture: Future[Seq[(String, String)]] = h2Db.run(
+    val clStrFuture: Future[Seq[(String, String)]] = h2DbExternal.run(
       clStr.map(x => (x.location, x.strclimate)).result
     )
     Await.result(clStrFuture, DURATION)
@@ -174,7 +146,7 @@ object Func {
   }
 
   private def readFromStoreLookup(
-    conn: Connection, product: String,
+    product: String,
     CL_STR_SET: Set[ClStrKey],
     DEPARTMENT_SET: Set[String],
     AM_WK_MAP: M.Map[AmWkKey, M.ArrayBuffer[String]],
@@ -187,7 +159,7 @@ object Func {
 
     import slick.jdbc.H2Profile.api._
 
-    val storeLookupFuture: Future[Seq[(Int, String, String, String)]] = h2Db.run(
+    val storeLookupFuture: Future[Seq[(Int, String, String, String)]] = h2DbExternal.run(
       storeLookup.map(x => (x.indx, x.location, x.grade, x.department)).result
     )
     Await.result(storeLookupFuture, DURATION)
@@ -260,10 +232,10 @@ object Func {
     STORE_AND_LIFECYLE_MAP
   }
 
-  private def readFromFrontSizes(conn: Connection, product: String): Int = {
+  private def readFromFrontSizes(product: String): Int = {
     import slick.jdbc.H2Profile.api._
 
-    val numSizesFuture: Future[Seq[Int]] = h2Db.run(
+    val numSizesFuture: Future[Seq[Int]] = h2DbExternal.run(
       frontSizes.filter(_.product===product).map(_.num_sizes).result
     )
     Await.result(numSizesFuture, DURATION)
@@ -278,7 +250,7 @@ object Func {
 
   }
 
-  private def readLocBaseFcst(conn: Connection, product: String):
+  private def readLocBaseFcst(product: String):
   (M.ArrayBuffer[LocBaseFcstKey], M.Map[Int, M.Map[LocationIndxKey, Int]]) = {
     val LOC_BASE_FCST: M.ArrayBuffer[LocBaseFcstKey] = M.ArrayBuffer[LocBaseFcstKey]()
     val LOC_BASE_FCST_LIST_BY_INDX: M.Map[Int, M.Map[LocationIndxKey, Int]] = M.SortedMap[Int, M.Map[LocationIndxKey, Int]]()
@@ -286,7 +258,7 @@ object Func {
     import slick.jdbc.H2Profile.api._
     val locBaseFcst = locBaseFcstMap.get(product).get.locBaseFcst
 
-    val locBaseFcstFuture: Future[Seq[(Int, String, Int)]] = h2Db.run(
+    val locBaseFcstFuture: Future[Seq[(Int, String, Int)]] = h2DbExternal.run(
       locBaseFcst.map(x => (x.indx, x.location, x.fcst)).result
     )
     Await.result(locBaseFcstFuture, DURATION)
@@ -350,7 +322,6 @@ object Func {
   }
 
   private def readInvModel(
-    conn: Connection,
     DEPARTMENT_SET: Set[String],
     REC_LOCATION: M.Map[TooNumSizesKey, M.Map[LocationIndxKey, TohInput]]
   ): M.Map[LocationIndxKey, Int] = {
@@ -359,7 +330,7 @@ object Func {
     val negativeMap: M.Map[LocationIndxKey, Int] = M.HashMap[LocationIndxKey, Int]()
 
     import slick.jdbc.H2Profile.api._
-    val invModelFuture: Future[Seq[(Int, Int, String, Long, Long, Int)]] = h2Db.run(
+    val invModelFuture: Future[Seq[(Int, Int, String, Long, Long, Int)]] = h2DbExternal.run(
       invModel.map(x => (x.too, x.num_sizes, x.department, x.aps, x.aps_lower, x.woc)).result
     )
     Await.result(invModelFuture, DURATION)
@@ -440,7 +411,6 @@ object Func {
         case Some(recLocationExtValue) =>
           val recLocationExtIndxArr: Array[IndxKey] = recLocationExtValue.keySet.toArray[IndxKey]
           val searcher: IndexSearcher[IndxKey] = new IndexSearcher[IndxKey](recLocationExtIndxArr)
-          logger.info("Create array size: "+recLocationExtIndxArr.length)
           for (indxFcstEntry <- updateTohValue) {
             val updateTohIndex: IndxKey = indxFcstEntry._1
             val fcstValue: Int = indxFcstEntry._2
@@ -474,14 +444,13 @@ object Func {
   }
 
   private def readFromBod(
-    conn: Connection,
     DEPARTMENT_SET: Set[String],
     LOCATION_SET: M.Set[LocationKey]
   ): M.Map[LocationKey, Int] = {
     val V_LT_MAP: M.Map[LocationKey, Int] = M.HashMap[LocationKey, Int]()
 
     import slick.jdbc.H2Profile.api._
-    val bodFuture: Future[Seq[(String, String, Int)]] = h2Db.run(
+    val bodFuture: Future[Seq[(String, String, Int)]] = h2DbExternal.run(
       bod.map(x => (x.location, x.department, x.bod)).result
     )
     Await.result(bodFuture, DURATION)
@@ -503,7 +472,7 @@ object Func {
     V_LT_MAP
   }
 
-  private def readFromVrpTest(conn: Connection):
+  private def readFromVrpTest():
   (Int, Int, M.Map[IndxKey, VrpTestSource], M.Map[SbktKey, M.Set[IndxKey]], M.Map[IndxKey, SbktKey]) = {
     val VRP_TEST_SOURCE_MAP: M.Map[IndxKey, VrpTestSource] = M.HashMap[IndxKey, VrpTestSource]()
     val SBKT_MAP: M.Map[SbktKey, M.Set[IndxKey]] = M.SortedMap[SbktKey, M.Set[IndxKey]]()
@@ -512,7 +481,7 @@ object Func {
     val FRST_SBKT_FINAL_VRP_SET: M.Set[IndxKey] = M.SortedSet[IndxKey]()
 
     import slick.jdbc.H2Profile.api._
-    val vrpTestFuture: Future[Seq[(Int,Option[Int],Int, Int, Int)]] = h2Db.run(
+    val vrpTestFuture: Future[Seq[(Int,Option[Int],Int, Int, Int)]] = h2DbExternal.run(
       vrpTest.map(x => (x.indx, x.cons, x.final_qty, x.final_vrp, x.sbkt)).result
     )
     Await.result(vrpTestFuture, DURATION)
@@ -548,10 +517,10 @@ object Func {
     (frstSbktFinalVrp, vFrstSbkt, VRP_TEST_SOURCE_MAP, SBKT_MAP, MIN_SBKT_BY_INDEX)
   }
 
-  private def readFromEoh(conn: Connection, product: String): M.Map[LocationKey, Int] = {
+  private def readFromEoh(product: String): M.Map[LocationKey, Int] = {
     val EOH_BY_PRODUCT: M.Map[LocationKey, Int] = M.HashMap[LocationKey, Int]()
     import slick.jdbc.H2Profile.api._
-    val eohFuture: Future[Seq[(String, Int)]] = h2Db.run(
+    val eohFuture: Future[Seq[(String, Int)]] = h2DbExternal.run(
       eoh.filter(_.product===product).map(x => (x.location, x.eoh)).result
     )
     Await.result(eohFuture, DURATION)
@@ -887,7 +856,7 @@ object Func {
       try {
         var start: Long = System.currentTimeMillis
         val globalStart: Long = start
-        val t = readFrontline(conn, product, v_plancurrent, v_planend)
+        val t = readFrontline(product, v_plancurrent, v_planend)
         var end: Long = System.currentTimeMillis
         logger.info("readFrontline() " + (end - start))
 
@@ -901,30 +870,30 @@ object Func {
         logger.info("FRONTLINE_DBTWK_EXIT_SET size: " + FRONTLINE_DBTWK_EXIT_SET.size)
 
         start = end
-        val numSizes: Int = readFromFrontSizes(conn, product)
+        val numSizes: Int = readFromFrontSizes(product)
         end = System.currentTimeMillis
         logger.info("readFromFrontSizes() " + (end - start))
 
         start = end
-        val DEPARTMENT_SET: Set[String] = readFromDepartment(conn, product)
+        val DEPARTMENT_SET: Set[String] = readFromDepartment(product)
         end = System.currentTimeMillis
         logger.info("readFromDepartment() " + (end - start))
         logger.info("DEPARTMENT_SET size: " + DEPARTMENT_SET.size)
 
         start = end
-        val CL_STR_SET: Set[ClStrKey] = readFromClStr(conn)
+        val CL_STR_SET: Set[ClStrKey] = readFromClStr()
         end = System.currentTimeMillis
         logger.info("readFromClStr() " + (end - start))
         logger.info("CL_STR_SET size: " + CL_STR_SET.size)
 
         start = end
-        val AM_WK_MAP: M.Map[AmWkKey, M.ArrayBuffer[String]] = readFromAttrTime(conn, product, DEPARTMENT_SET, FRONT_CLIMATE_MAP)
+        val AM_WK_MAP: M.Map[AmWkKey, M.ArrayBuffer[String]] = readFromAttrTime(product, DEPARTMENT_SET, FRONT_CLIMATE_MAP)
         end = System.currentTimeMillis
         logger.info("readFromAttrTime() " + (end - start))
         logger.info("AM_WK_MAP size: " + AM_WK_MAP.size)
 
         start = end
-        val STORE_LIST_MAP: M.Map[String, M.Set[Int]] = readFromStoreLookup(conn, product, CL_STR_SET, DEPARTMENT_SET, AM_WK_MAP, FRONTLINE_EXIT_SET)
+        val STORE_LIST_MAP: M.Map[String, M.Set[Int]] = readFromStoreLookup(product, CL_STR_SET, DEPARTMENT_SET, AM_WK_MAP, FRONTLINE_EXIT_SET)
         end = System.currentTimeMillis
         logger.info("readFromStoreLookup() " + (end - start))
         logger.info("STORE_LIST_MAP size: " + STORE_LIST_MAP.size)
@@ -948,7 +917,7 @@ object Func {
         logger.info("joinStoreAndLifecyle() " + (end - start))
         logger.info("STORE_AND_LIFECYLE_MAP size: " + STORE_AND_LIFECYLE_MAP.size)
 
-        val t1 = readLocBaseFcst(conn, product)
+        val t1 = readLocBaseFcst(product)
         val LOC_BASE_FCST = t1._1
         val LOC_BASE_FCST_LIST_BY_INDX = t1._2
         end = System.currentTimeMillis
@@ -965,7 +934,7 @@ object Func {
         logger.info("createTohInput() " + (end - start))
 
         start = end
-        val LKP_REC: M.Map[LocationIndxKey, Int] = readInvModel(conn, DEPARTMENT_SET, REC_LOCATION)
+        val LKP_REC: M.Map[LocationIndxKey, Int] = readInvModel(DEPARTMENT_SET, REC_LOCATION)
         end = System.currentTimeMillis
         logger.info("readInvModel() " + (end - start))
         logger.info("LKP_REC size: " + LKP_REC.size)
@@ -983,12 +952,12 @@ object Func {
         logger.info("createTohInputFinal() " + (end - start))
 
         start = end
-        val V_LT: M.Map[LocationKey, Int] = readFromBod(conn, DEPARTMENT_SET, LOCATION_SET)
+        val V_LT: M.Map[LocationKey, Int] = readFromBod(DEPARTMENT_SET, LOCATION_SET)
         end = System.currentTimeMillis
         logger.info("readFromBod() " + (end - start))
         start = end
 
-        val vrpTestRes = readFromVrpTest(conn)
+        val vrpTestRes = readFromVrpTest()
         val frstSbktFinalVrp: Int = vrpTestRes._1
         val vFrstSbkt: Int = vrpTestRes._2
         val VRP_TEST_SOURCE_MAP = vrpTestRes._3
@@ -1001,7 +970,7 @@ object Func {
         logger.info("VRP_TEST size: " + VRP_TEST_SOURCE_MAP.size)
 
         start = end
-        val EOH_BY_PRODUCT: M.Map[LocationKey, Int] = readFromEoh(conn, product)
+        val EOH_BY_PRODUCT: M.Map[LocationKey, Int] = readFromEoh(product)
         end = System.currentTimeMillis
         logger.info("readFromEoh() " + (end - start))
         logger.info("EOH_BY_PRODUCT size: " + EOH_BY_PRODUCT.size)
@@ -1039,7 +1008,6 @@ object Func {
         logger.error("Total execution time: " + (end - globalStart))
 
         start = end
-        //implicit def toJavaInteger(in:Int): Integer = in.asInstanceOf[java.lang.Integer]
         for (rcptEntry <- RCPT_MAP) {
           val key: LocationIndxKey = rcptEntry._1
           val target: Rcpt = rcptEntry._2
@@ -1085,8 +1053,7 @@ object Func {
     }
   }
 
-  private def createOutputResultSet: SimpleResultSet
-  = {
+  private def createOutputResultSet: SimpleResultSet = {
     val rs: SimpleResultSet = new SimpleResultSet
     rs.addColumn("idx", Types.INTEGER, 10, 0)
     rs.addColumn("location", Types.VARCHAR, 8, 0)
