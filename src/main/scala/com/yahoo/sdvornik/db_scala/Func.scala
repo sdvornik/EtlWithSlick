@@ -76,7 +76,8 @@ object Func {
     import scala.concurrent.ExecutionContext.Implicits.global
     h2DbExternal.run(
       department.filter(_.product===product).map(x => x.department).result
-    ).map((x: Seq[String]) => x.toSet)
+    )
+      .map((x: Seq[String]) => x.toSet)
   }
 
   private def readFromFrontSizes(product: String): Future[Int] = {
@@ -84,16 +85,17 @@ object Func {
     import scala.concurrent.ExecutionContext.Implicits.global
     h2DbExternal.run(
       frontSizes.filter(_.product===product).map(_.num_sizes).result
-    ).map(y => y.head)
+    )
+      .map(y => y.head)
   }
 
   private def readFromClStr(): Future[Set[ClStrKey]] = {
     import slick.jdbc.H2Profile.api._
     import scala.concurrent.ExecutionContext.Implicits.global
     h2DbExternal.run(
-      clStr.map(x => (x.location, x.strclimate)).result.
-        map(z => z.map(y => ClStrKey(y._1, y._2)).toSet)
+      clStr.map(x => (x.location, x.strclimate)).result
     )
+      .map(z => z.map(y => ClStrKey(y._1, y._2)).toSet)
   }
 
   private def readFromAttrTime(
@@ -186,49 +188,37 @@ object Func {
       )
   }
 
-  private def readFromVrpTest():
-  (Int, Int, M.Map[IndxKey, VrpTestSource], M.Map[SbktKey, M.Set[IndxKey]], M.Map[IndxKey, SbktKey]) = {
-    val VRP_TEST_SOURCE_MAP: M.Map[IndxKey, VrpTestSource] = M.HashMap[IndxKey, VrpTestSource]()
-    val SBKT_MAP: M.Map[SbktKey, M.Set[IndxKey]] = M.SortedMap[SbktKey, M.Set[IndxKey]]()
-    val MIN_SBKT_BY_INDEX: M.Map[IndxKey, SbktKey] = M.SortedMap[IndxKey, SbktKey]()
-
-    val FRST_SBKT_FINAL_VRP_SET: M.Set[IndxKey] = M.SortedSet[IndxKey]()
-
+  private def readFromVrpTest(): Future[
+    (Int, Int, M.Map[IndxKey, VrpTestSource], M.Map[SbktKey, M.Set[IndxKey]], M.Map[IndxKey, SbktKey])
+    ] = {
     import slick.jdbc.H2Profile.api._
-    val vrpTestFuture: Future[Seq[(Int,Option[Int],Int, Int, Int)]] = h2DbExternal.run(
+    import scala.concurrent.ExecutionContext.Implicits.global
+    h2DbExternal.run(
       vrpTest.map(x => (x.indx, x.cons, x.final_qty, x.final_vrp, x.sbkt)).result
     )
-    Await.result(vrpTestFuture, DURATION)
+      .map(y => y
+        .foldLeft(
+          (M.HashMap[IndxKey, VrpTestSource](),
+            M.SortedMap[SbktKey, M.Set[IndxKey]](),
+            M.SortedMap[IndxKey, SbktKey](),
+            M.SortedSet[IndxKey]()
+          )
+        )((b, a) => {
+          val indxKey: IndxKey = IndxKey(a._1)
+          val sbktKey: SbktKey = SbktKey(a._5)
+          val vrpTestSource: VrpTestSource = VrpTestSource(a._2.getOrElse(0), a._3, a._4)
 
-    vrpTestFuture.value match {
-      case Some(x) => x match {
-        case Success(y) => y.foreach(x => {
-          val indxKey: IndxKey = IndxKey(x._1)
+          b._1.put(indxKey, vrpTestSource)
+          b._2.getOrElseUpdate(sbktKey, M.SortedSet[IndxKey]())+=indxKey
 
-          val sbktKey: SbktKey = SbktKey(x._5)
+          val dcSbkt: SbktKey = b._3.getOrElseUpdate(indxKey, SbktKey(Integer.MAX_VALUE))
+          if (dcSbkt.sbkt > sbktKey.sbkt) b._3.put(indxKey, sbktKey)
 
-          val cons: Int = x._2.getOrElse(0)
-
-          val vrpTestSource: VrpTestSource = VrpTestSource(cons, x._3, x._4)
-
-          VRP_TEST_SOURCE_MAP.put(indxKey, vrpTestSource)
-          SBKT_MAP.getOrElseUpdate(sbktKey, M.SortedSet[IndxKey]())+=indxKey
-
-          val dcSbkt: SbktKey = MIN_SBKT_BY_INDEX.getOrElseUpdate(indxKey, SbktKey(Integer.MAX_VALUE))
-          if (dcSbkt.sbkt > sbktKey.sbkt) MIN_SBKT_BY_INDEX.put(indxKey, sbktKey)
-
-          if (vrpTestSource.finalVrp > 0) FRST_SBKT_FINAL_VRP_SET+=indxKey
-
+          if (vrpTestSource.finalVrp > 0) b._4+=indxKey
+          b
         })
-        case Failure(e) => logger.error("Can't read bod table", e);
-      }
-    }
-
-    val frstSbktFinalVrp: Int = FRST_SBKT_FINAL_VRP_SET.head.indx
-    FRST_SBKT_FINAL_VRP_SET.clear()
-
-    val vFrstSbkt: Int = SBKT_MAP.getOrElse(SBKT_MAP.keySet.head, M.Set.empty).head.indx
-    (frstSbktFinalVrp, vFrstSbkt, VRP_TEST_SOURCE_MAP, SBKT_MAP, MIN_SBKT_BY_INDEX)
+    )
+    .map(b => (b._4.head.indx, b._2(b._2.keySet.head).head.indx, b._1, b._2, b._3))
   }
 
 
@@ -279,8 +269,6 @@ object Func {
     })
     STORE_AND_LIFECYLE_MAP
   }
-
-
 
   private def createTohInput(
     STORE_AND_LIFECYLE_MAP: M.Map[LocationIndxKey, TohInput],
@@ -792,27 +780,29 @@ object Func {
     if (conn.getMetaData.getURL == "jdbc:columnlist:connection") rs else {
       try {
         import scala.concurrent.ExecutionContext.Implicits.global
-        var start: Long = System.currentTimeMillis
-        val globalStart: Long = start
-        var end = 0L
 
-        val frontlineFuture: Future[(M.Map[String, M.Set[FrontlineClimate]], Set[FrontlineExit], Set[FrontlineDbtwkExit], Set[FrontlineWithTime])]
-          = readFrontline(product, v_plancurrent, v_planend)
+        val globalStart: Long = System.currentTimeMillis
+        var start: Long = globalStart
 
-        val departmentSetFuture: Future[Set[String]] = readFromDepartment(product)
-
-
+        val csF = readFromClStr()
+        val vrpF = readFromVrpTest()
+        val dsF = readFromDepartment(product)
+        val nsF = readFromFrontSizes(product)
+        val lbF = readLocBaseFcst(product)
+        val eohF = readFromEoh(product)
+        val tF = readFrontline(product, v_plancurrent, v_planend)
 
         val combineFuture = for(
-          cs <- readFromClStr();
-          ds <- readFromDepartment(product);
-          ns <- readFromFrontSizes(product);
-          locBase <- readLocBaseFcst(product);
-          eoh <- readFromEoh(product);
-          t <- readFrontline(product, v_plancurrent, v_planend);
+          cs <- csF;
+          vrp <- vrpF;
+          ds <- dsF;
+          ns <- nsF;
+          lb <- lbF;
+          eoh <- eohF;
+          t <- tF;
           amWk <- readFromAttrTime(product, ds, t._1);
           stLookup <- readFromStoreLookup(product, cs, ds, amWk, t._2)
-        ) yield (t, ds, ns, cs, amWk, stLookup, locBase, eoh)
+        ) yield (t, ds, ns, cs, amWk, stLookup, lb, eoh, vrp)
 
         Await.result(combineFuture, DURATION)
 
@@ -824,7 +814,8 @@ object Func {
           M.Map[AmWkKey, M.ArrayBuffer[String]],
           M.Map[String, M.Set[Int]],
           (M.ArrayBuffer[LocBaseFcstKey], M.Map[Int, M.Map[LocationIndxKey, Int]]),
-          M.Map[LocationKey, Int]
+          M.Map[LocationKey, Int],
+          (Int, Int, M.Map[IndxKey, VrpTestSource], M.Map[SbktKey, M.Set[IndxKey]], M.Map[IndxKey, SbktKey])
           ) = combineFuture.value match {
           case Some(x) => x match {
             case Success(y) => y
@@ -832,8 +823,6 @@ object Func {
           }
           case None => throw new IllegalStateException()
         }
-
-
         val FRONT_CLIMATE_MAP = res._1._1
         val FRONTLINE_EXIT_SET = res._1._2
         val FRONTLINE_DBTWK_EXIT_SET = res._1._3
@@ -862,17 +851,19 @@ object Func {
         val EOH_BY_PRODUCT: M.Map[LocationKey, Int] = res._8
         logger.info("EOH_BY_PRODUCT size: " + EOH_BY_PRODUCT.size)
 
-        val vrpTestRes = readFromVrpTest()
-        val frstSbktFinalVrp: Int = vrpTestRes._1
-        val vFrstSbkt: Int = vrpTestRes._2
-        val VRP_TEST_SOURCE_MAP = vrpTestRes._3
-        val SBKT_MAP = vrpTestRes._4
-        val MIN_SBKT_BY_INDEX = vrpTestRes._5
-        end = System.currentTimeMillis
-        logger.info("readFromVrpTest() " + (end - start))
+
+        val frstSbktFinalVrp: Int = res._9._1
+        val vFrstSbkt: Int = res._9._2
+        val VRP_TEST_SOURCE_MAP = res._9._3
+        val SBKT_MAP = res._9._4
+        val MIN_SBKT_BY_INDEX = res._9._5
+
         logger.info("vFrstSbkt: " + vFrstSbkt)
         logger.info("frstSbktFinalVrp: " + frstSbktFinalVrp)
         logger.info("VRP_TEST size: " + VRP_TEST_SOURCE_MAP.size)
+
+        var end = System.currentTimeMillis
+        logger.info("Total time of multithreaded calculation: " + (end - start))
 
         start = end
         val MIN_INDEX_BY_LOCATION: M.Map[String, Int] = M.HashMap[String, Int]()
@@ -892,8 +883,6 @@ object Func {
         end = System.currentTimeMillis
         logger.info("joinStoreAndLifecyle() " + (end - start))
         logger.info("STORE_AND_LIFECYLE_MAP size: " + STORE_AND_LIFECYLE_MAP.size)
-
-
 
         start = end
         val TOH_INPUT: M.Map[LocationIndxKey, TohInput] = M.HashMap[LocationIndxKey, TohInput]()
