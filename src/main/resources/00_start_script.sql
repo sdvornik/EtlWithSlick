@@ -1,4 +1,3 @@
---[2017-04-08 16:48:49] Summary: 14 of 14 statements executed in 2s 533ms (766 symbols in file)
 SET UNDO_LOG 0;
 SET LOG 0;
 SET CACHE_SIZE 10000000;
@@ -33,7 +32,6 @@ CREATE INDEX STORE_LOOKUP_time_idx ON STORE_LOOKUP("indx");
 
 CREATE HASH INDEX CL_STR_location_strclimate_idx ON CL_STR("location", "strclimate");
 
---[2017-04-01 18:59:39] completed in 0ms
 create table DEPARTMENT_SET AS (
   select distinct
     "department"
@@ -42,7 +40,6 @@ create table DEPARTMENT_SET AS (
 );
 CREATE HASH INDEX DEPARTMENT_SET_department_idx ON DEPARTMENT_SET("department");
 
---[2017-04-01 16:01:52] completed in 1ms
 create table FRONT_SOURCE_0 AS (
   select distinct
     "location"
@@ -53,16 +50,12 @@ create table FRONT_SOURCE_0 AS (
   JOIN ARGS ON FRONTLINE."product" = ARGS.product
 );
 
---[2017-04-01 16:06:41] completed in 0ms
 create table TEMP_STORE_NUMSIZE AS (
   SELECT
     "num_sizes"
   FROM FRONT_SIZES JOIN ARGS ON FRONT_SIZES."product" = ARGS.product
 );
 
-
-
---[2017-04-01 16:01:19] completed in 15ms
 create table FRONT_EXIT AS (
   select distinct
     greatest("initrcptwk_indx", ARGS.v_plancurrent) AS bottom
@@ -71,7 +64,6 @@ create table FRONT_EXIT AS (
   JOIN ARGS ON FRONTLINE."product" = ARGS.product
 );
 
---[2017-04-08 18:22:39] completed in 4ms
 create table V_RCPT_INT_SET AS (
   select
     v_rcpt_int
@@ -79,7 +71,6 @@ create table V_RCPT_INT_SET AS (
   JOIN ARGS ON V_RCPT_INT."product" = ARGS.product
 );
 
---[2017-04-01 16:02:37] completed in 0ms
 create table V_IRW_TABLE AS (
   select distinct
     "initrcptwk_indx" AS v_irw
@@ -87,7 +78,6 @@ create table V_IRW_TABLE AS (
   JOIN ARGS ON FRONTLINE."product" = ARGS.product
 );
 
---[2017-04-01 16:03:06] completed in 0ms
 create table TIME_LIMIT_TABLE AS (
   select distinct
     coalesce(lastdcrcpt_indx,least(ARGS.v_planend, "exitdate_indx")) AS time_limit
@@ -103,7 +93,6 @@ create table ADD_ARGS AS (
   FROM V_IRW_TABLE, V_RCPT_INT_SET, TIME_LIMIT_TABLE
 );
 
---[2017-04-01 15:59:33] completed in 0ms
 create table DC_ADJ_SET AS (
   select
     time_indx
@@ -127,7 +116,6 @@ create table EOH_BY_PRODUCT AS (
 
 CREATE HASH INDEX EOH_location_idx ON EOH_BY_PRODUCT(location);
 
---[2017-04-08 18:27:55] completed in 11ms
 create table VRP_SET_0 AS (
   SELECT
     TIME_INDX."indx" AS time_indx
@@ -141,8 +129,6 @@ create table VRP_SET_0 AS (
   ORDER BY "indx"
 );
 
-
---[2017-04-08 18:28:17] completed in 3ms
 create table GET_INDEX AS (
   SELECT DISTINCT
     mod(VRP_SET_0.rev_indx, ADD_ARGS.v_rcpt_int) AS value
@@ -150,7 +136,6 @@ create table GET_INDEX AS (
   JOIN ADD_ARGS ON ADD_ARGS.v_irw = VRP_SET_0.time_indx
 );
 
---[2017-04-02 14:16:15] completed in 6ms
 create table VRP_SET_1 AS (
   SELECT
     time_indx
@@ -168,9 +153,6 @@ create table VRP_SET_1 AS (
     VRP_SET_0.time_indx >= ARGS.v_plancurrent
 );
 
-
-
---[2017-04-08 18:30:21] completed in 3ms
 create table VRP_SET_2 AS (
   SELECT
     VRP_SET_1.time_indx
@@ -187,7 +169,6 @@ create table VRP_SET_2 AS (
      VRP_SET_1.time_indx = DC_ADJ_SET.time_indx
 );
 
---[2017-04-04 22:53:16] completed in 9ms
 create table VRP_SET_3 AS (
   SELECT
     time_indx
@@ -228,7 +209,6 @@ create table VRP_SET_3 AS (
   ORDER BY time_indx
 );
 
---[2017-04-04 23:16:36] completed in 10ms
 create table FINAL_VRP_CALC AS (
   WITH RECURSIVE REC(row_number, time_indx, sbkt) AS (
     SELECT
@@ -250,7 +230,6 @@ create table FINAL_VRP_CALC AS (
   SELECT * FROM REC
 );
 
---[2017-04-04 23:18:24] completed in 7ms
 create table VRP_SET_4 AS (
   SELECT
     FINAL_VRP_CALC.time_indx
@@ -262,7 +241,6 @@ create table VRP_SET_4 AS (
   LEFT JOIN FINAL_VRP_CALC ON VRP_SET_3.time_indx = FINAL_VRP_CALC.time_indx
 );
 
---[2017-04-08 18:34:29] completed in 9ms
 insert into VRP_TEST ("indx", "cons", "sbkt", "final_vrp", "final_qty")
   SELECT
     time_indx AS "indx"
@@ -290,7 +268,6 @@ drop table GET_INDEX;
 drop table VRP_SET_1;
 drop table VRP_SET_2;
 drop table VRP_SET_3;
-drop table FINAL_VRP_CALC;
 drop table VRP_SET_4;
-
+drop table FINAL_VRP_CALC;
 --drop table VRP_TEST;
