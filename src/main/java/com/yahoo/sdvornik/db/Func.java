@@ -1,9 +1,13 @@
 package com.yahoo.sdvornik.db;
 
-import com.yahoo.sdvornik.db.dc.Dc;
-import com.yahoo.sdvornik.db.rcpt.Rcpt;
-import com.yahoo.sdvornik.db.toh_input.TohInputSource;
-import com.yahoo.sdvornik.db.vrp_test.VrpTestSource;
+import com.yahoo.sdvornik.db.keys.IndxKey;
+import com.yahoo.sdvornik.db.keys.LocationIndxKey;
+import com.yahoo.sdvornik.db.keys.LocationKey;
+import com.yahoo.sdvornik.db.keys.SbktKey;
+import com.yahoo.sdvornik.db.types.Dc;
+import com.yahoo.sdvornik.db.types.Rcpt;
+import com.yahoo.sdvornik.db.types.TohInputSource;
+import com.yahoo.sdvornik.db.types.VrpTestSource;
 import org.h2.tools.SimpleResultSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

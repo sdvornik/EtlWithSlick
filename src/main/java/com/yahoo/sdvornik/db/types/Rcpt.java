@@ -1,4 +1,4 @@
-package com.yahoo.sdvornik.db.rcpt;
+package com.yahoo.sdvornik.db.types;
 
 
 public class Rcpt {

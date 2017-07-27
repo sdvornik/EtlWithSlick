@@ -1,4 +1,4 @@
-package com.yahoo.sdvornik.db;
+package com.yahoo.sdvornik.db.keys;
 
 public final class LocationKey implements Comparable<LocationKey>{
   private final String value;

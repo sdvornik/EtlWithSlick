@@ -1,4 +1,4 @@
-package com.yahoo.sdvornik.db.dc;
+package com.yahoo.sdvornik.db.types;
 
 public class Dc {
 

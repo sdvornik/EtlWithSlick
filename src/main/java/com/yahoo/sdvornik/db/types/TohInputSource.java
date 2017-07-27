@@ -1,6 +1,6 @@
-package com.yahoo.sdvornik.db.toh_input;
+package com.yahoo.sdvornik.db.types;
 
-import com.yahoo.sdvornik.db.LocationIndxKey;
+import com.yahoo.sdvornik.db.keys.LocationIndxKey;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;

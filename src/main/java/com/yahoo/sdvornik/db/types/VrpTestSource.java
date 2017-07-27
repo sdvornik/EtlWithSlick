@@ -1,9 +1,7 @@
-package com.yahoo.sdvornik.db.vrp_test;
+package com.yahoo.sdvornik.db.types;
 
-import com.yahoo.sdvornik.db.Func;
-import com.yahoo.sdvornik.db.IndxKey;
-import com.yahoo.sdvornik.db.LocationIndxKey;
-import com.yahoo.sdvornik.db.SbktKey;
+import com.yahoo.sdvornik.db.keys.IndxKey;
+import com.yahoo.sdvornik.db.keys.SbktKey;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;

@@ -1,4 +1,4 @@
-package com.yahoo.sdvornik.db;
+package com.yahoo.sdvornik.db.keys;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
