@@ -8,8 +8,6 @@ object Dependencies {
   lazy val postgresDbVersion = "9.1-901-1.jdbc4"
   lazy val scalaLoggingVersion = "3.5.0"
   lazy val slickVersion = "3.2.0"
-  lazy val jooqVersion = "3.9.1"
-  lazy val funcJavaVersion = "4.7"
 
   val scalaTest: ModuleID = "org.scalatest" %% "scalatest" % scalaTestVersion
 
@@ -27,9 +25,6 @@ object Dependencies {
 
   val slf4jImpl: ModuleID = "org.slf4j" % "slf4j-log4j12" % slf4jVersion
 
-  val funcJava: ModuleID = "org.functionaljava" % "functionaljava" % funcJavaVersion
-
-
   val dependencies: Seq[ModuleID] = Seq(
     scalaTest % Test,
     scalaLogging,
@@ -38,8 +33,6 @@ object Dependencies {
     slick,
     slickHikaricp,
     slf4jApi,
-    slf4jImpl,
-
-    funcJava
+    slf4jImpl
   )
 }

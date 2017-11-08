@@ -456,6 +456,7 @@ object Func {
         })
         case Failure(e) => logger.error("Can't read bod table", e);
       }
+      case _ =>
     }
 
     V_LT_MAP

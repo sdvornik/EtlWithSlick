@@ -1,22 +1,10 @@
 import Dependencies._
 
-/*
- * sbt-dependency-graph settings. See https://github.com/jrudolph/sbt-dependency-graph.
- * Run dependencyDot to generate a .dot file with the project's dependencies to target/dependencies-<config>.dot
- * Or use show update in sbt console.
- */
-dependencyDotFile := file("dependencies.dot")
-/*
- * Revolver settings
- */
 Revolver.settings
-/*
- * See https://github.com/marcuslonnberg/sbt-docker for details
- */
 
-val projectName = "MultithreadingCalc"
+val projectName = "EtlWithSlick"
 
-name := "MultithreadingCalc"
+name := "EtlWithSlick"
 
 scalaVersion in ThisBuild := "2.12.1"
 
@@ -32,10 +20,8 @@ organization in ThisBuild := "com.yahoo.sdvornik"
 
 version in ThisBuild := "1.0"
 
-// remove test task in assembly task
 test in assembly in ThisBuild := {}
 
-// project structure
 lazy val main = (project in file("."))
   .settings(
 
@@ -61,9 +47,7 @@ lazy val main = (project in file("."))
           val oldStrategy = (assemblyMergeStrategy in assembly).value
           oldStrategy(x)
       }
-	      // Copy dependencies in managed_lib folder
-    // retrieveManaged := true,
-    )
+  )
 
 
 
